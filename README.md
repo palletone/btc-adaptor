@@ -26,6 +26,26 @@ go build
 
 1.下载 btcwallet 代码
 
+推荐使用glide下载，
+```
+go get -u github.com/btcsuite/btcwallet
+
+glide mirror set https://golang.org/x/mobile https://github.com/golang/mobile --vcs git
+glide mirror set https://golang.org/x/crypto https://github.com/golang/crypto --vcs git
+glide mirror set https://golang.org/x/net https://github.com/golang/net --vcs git
+glide mirror set https://golang.org/x/tools https://github.com/golang/tools --vcs git
+glide mirror set https://golang.org/x/text https://github.com/golang/text --vcs git
+glide mirror set https://golang.org/x/image https://github.com/golang/image --vcs git
+glide mirror set https://golang.org/x/sys https://github.com/golang/sys --vcs git
+glide mirror set https://google.golang.org/grpc https://github.com/grpc/grpc-go --vcs git
+glide mirror set https://google.golang.org/genproto https://github.com/google/go-genproto --vcs git
+
+cd $GOPATH/src/github.com/btcsuite/btcwallet
+glide install
+```
+
+或者依次下载依赖的各个库，如下：
+
 linux need clone `github.com/golang.org/x/sys`
 
 ```
