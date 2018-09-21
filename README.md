@@ -28,7 +28,7 @@ go build
 
 推荐使用glide下载，
 ```
-go get -u github.com/btcsuite/btcwallet
+git clone https://github.com/btcsuite/btcwallet
 
 glide mirror set https://golang.org/x/mobile https://github.com/golang/mobile --vcs git
 glide mirror set https://golang.org/x/crypto https://github.com/golang/crypto --vcs git
