@@ -28,9 +28,11 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcutil"
+
+	"github.com/palletone/adaptor"
 )
 
-func NewPrivateKey(netID int) (wifPriKey string) {
+func NewPrivateKey(netID adaptor.NetID) (wifPriKey string) {
 	//rand bytes
 	randBytes := make([]byte, 32)
 	_, err := rand.Read(randBytes)
@@ -55,7 +57,7 @@ func NewPrivateKey(netID int) (wifPriKey string) {
 	return wif.String()
 }
 
-func GetPublicKey(wifPriKey string, netID int) (pubKey string) {
+func GetPublicKey(wifPriKey string, netID adaptor.NetID) (pubKey string) {
 	//decode to wif
 	wif, err := btcutil.DecodeWIF(wifPriKey)
 	if err != nil {
@@ -75,7 +77,7 @@ func GetPublicKey(wifPriKey string, netID int) (pubKey string) {
 	return addressPubKey.String()
 }
 
-func GetAddress(wifPriKey string, netID int) (address string) {
+func GetAddress(wifPriKey string, netID adaptor.NetID) (address string) {
 	//decode to wif
 	wif, err := btcutil.DecodeWIF(wifPriKey)
 	if err != nil {
@@ -96,14 +98,7 @@ func GetAddress(wifPriKey string, netID int) (address string) {
 	return addressPubKey.EncodeAddress()
 }
 
-type GetAddressByPubkeyParams struct {
-	pubKeyHex string `json:"pubKeyHex"`
-}
-type GetAddressByPubkeyResult struct {
-	address string `json:"address"`
-}
-
-func GetAddressByPubkey(pubKeyHex string, netID int) (string, error) {
+func GetAddressByPubkey(pubKeyHex string, netID adaptor.NetID) (string, error) {
 	//
 	pubKeyBytes, err := hex.DecodeString(pubKeyHex)
 	if err != nil {
@@ -124,18 +119,7 @@ func GetAddressByPubkey(pubKeyHex string, netID int) (string, error) {
 	return addressPubKey.EncodeAddress(), nil
 }
 
-type CreateMultiSigParams struct {
-	PublicKeys []string `json:"publicKeys"`
-	N          int      `json:"n"`
-	M          int      `json:"m"`
-}
-type CreateMultiSigResult struct {
-	P2ShAddress  string   `json:"p2sh_address"`
-	RedeemScript string   `json:"redeem_script"`
-	Addresses    []string `json:"addresses"`
-}
-
-func CreateMultiSigAddress(createMultiSigParams *CreateMultiSigParams, netID int) (string, error) {
+func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, netID adaptor.NetID) (string, error) {
 	//	var createMultiSigParams CreateMultiSigParams
 	//	err := json.Unmarshal([]byte(params), &createMultiSigParams)
 	//	if err != nil {
@@ -191,7 +175,7 @@ func CreateMultiSigAddress(createMultiSigParams *CreateMultiSigParams, netID int
 		return "", err
 	}
 	//result for return
-	var createMultiSigResult CreateMultiSigResult
+	var createMultiSigResult adaptor.CreateMultiSigResult
 	createMultiSigResult.P2ShAddress = scriptAddr.String()
 	createMultiSigResult.RedeemScript = hex.EncodeToString(pkScript)
 

@@ -31,19 +31,11 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+
+	"github.com/palletone/adaptor"
 )
 
-type SignTransactionParams struct {
-	TransactionHex string   `json:"transactionhex"`
-	RedeemHex      string   `json:"redeemhex"`
-	Privkeys       []string `json:"privkeys"` //wif private keys
-}
-type SignTransactionResult struct {
-	Complete       bool   `json:"complete"`
-	TransactionHex string `json:"transactionhex"`
-}
-
-func SignTransaction(signTransactionParams *SignTransactionParams, rpcParams *RPCParams, netID int) (string, error) {
+func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
 	//	//convert params from json format
 	//	var signTransactionParams SignTransactionParams
 	//	err := json.Unmarshal([]byte(params), &signTransactionParams)
@@ -135,7 +127,7 @@ func SignTransaction(signTransactionParams *SignTransactionParams, rpcParams *RP
 	}
 
 	//result for return
-	var signTransactionResult SignTransactionResult
+	var signTransactionResult adaptor.SignTransactionResult
 	signTransactionResult.TransactionHex = hex.EncodeToString(bufTX.Bytes())
 	signTransactionResult.Complete = complete
 
@@ -147,16 +139,9 @@ func SignTransaction(signTransactionParams *SignTransactionParams, rpcParams *RP
 	return string(jsonResult), nil
 }
 
-type SendTransactionParams struct {
-	TransactionHex string `json:"transactionhex"`
-}
-type SendTransactionResult struct {
-	TransactionHah string `json:"transactionhash"`
-}
-
 func SendTransaction(params string, rpcParams *RPCParams) string {
 	//convert params from json format
-	var sendTransactionParams SendTransactionParams
+	var sendTransactionParams adaptor.SendTransactionParams
 	err := json.Unmarshal([]byte(params), &sendTransactionParams)
 	if err != nil {
 		return err.Error()
@@ -193,7 +178,7 @@ func SendTransaction(params string, rpcParams *RPCParams) string {
 	}
 
 	//result for return
-	var sendTransactionResult SendTransactionResult
+	var sendTransactionResult adaptor.SendTransactionResult
 	sendTransactionResult.TransactionHah = hashTX.String()
 
 	jsonResult, err := json.Marshal(sendTransactionResult)
@@ -204,18 +189,7 @@ func SendTransaction(params string, rpcParams *RPCParams) string {
 	return string(jsonResult)
 }
 
-type SignTxSendParams struct {
-	TransactionHex string   `json:"transactionhex"`
-	RedeemHex      string   `json:"redeemhex"`
-	Privkeys       []string `json:"privkeys"` //wif private keys
-}
-type SignTxSendResult struct {
-	TransactionHah string `json:"transactionhash"`
-	Complete       bool   `json:"complete"`
-	TransactionHex string `json:"transactionhex"`
-}
-
-func SignTxSend(signTxSendParams *SignTxSendParams, rpcParams *RPCParams, netID int) (string, error) {
+func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
 	//check empty string
 	if "" == signTxSendParams.TransactionHex {
 		return "", errors.New("Params error : NO TransactionHex.")
@@ -294,7 +268,7 @@ func SignTxSend(signTxSendParams *SignTxSendParams, rpcParams *RPCParams, netID 
 	}
 
 	//result for return
-	var signTxSendResult SignTxSendResult
+	var signTxSendResult adaptor.SignTxSendResult
 	if complete {
 		//send to network
 		hashTX, err := client.SendRawTransaction(resultTX, false)
@@ -384,7 +358,7 @@ func checkScripts(tx *wire.MsgTx, idx int, inputAmt int64,
 func MultisignOneByOne(prevTxHash string, index uint,
 	amount int64, fee int64, recvAddress string,
 	redeem string, partSigedScript string,
-	wifKey string, netID int) (signedTransaction, newSigedScript string, complete bool) {
+	wifKey string, netID adaptor.NetID) (signedTransaction, newSigedScript string, complete bool) {
 	//chainnet
 	var realNet *chaincfg.Params
 	if netID == NETID_MAIN {

@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/palletone/adaptor"
 )
 
 func TestGetUnspendUTXO(t *testing.T) {
 	//	parms := `{"addresses": ["mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt"],"minconf": 0,"maxconf": 999999,"maximumCount": 10}`
-	parms := `{"addresses": ["mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"],"minconf": 0,"maxconf": 999999,"maximumCount": 10}`
+	parms := `{"addresses": ["mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"],"minconf": 0,"maxconf": 999999,"maximumCount": 100}`
 	//	parms := `{"addresses": ["miZqthevf8LWguQmUR6EwynULqjKmYWxyY"],"minconf": 0,"maxconf": 999999,"maximumCount": 10}`
 	//	parms := `{"addresses": ["2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"],"minconf": 0,"maxconf": 999999,"maximumCount": 10}`
 
@@ -39,12 +41,12 @@ func TestGetBalance(t *testing.T) {
 		CertPath:  GCertPath,
 	}
 
-	testResult := `{"value":1}`
+	testResult := `{"value":0}`
 
-	//	getBalanceParams := &GetBalanceParams{"mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt", 1}
-	getBalanceParams := &GetBalanceParams{"mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5", 1}
-	//	getBalanceParams := &GetBalanceParams{"miZqthevf8LWguQmUR6EwynULqjKmYWxyY", 1}
-	//	getBalanceParams := &GetBalanceParams{"2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA", 1}
+	//	getBalanceParams := &adaptor.GetBalanceParams{"mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt", 1}
+	getBalanceParams := &adaptor.GetBalanceParams{"mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5", 0}
+	//	getBalanceParams := &adaptor.GetBalanceParams{"miZqthevf8LWguQmUR6EwynULqjKmYWxyY", 1}
+	//	getBalanceParams := &adaptor.GetBalanceParams{"2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA", 1}
 
 	result, err := GetBalance(getBalanceParams, &rpcParams, NETID_TEST)
 	if err != nil {
@@ -75,7 +77,7 @@ func TestImportMultisig(t *testing.T) {
 	pubkeyAlice := "03940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d5410514"
 	pubkeyBob := "020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb"
 	pubkeyPallet := "029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef5"
-	var importMultisigParams ImportMultisigParams
+	var importMultisigParams adaptor.ImportMultisigParams
 	importMultisigParams.PublicKeys = append(importMultisigParams.PublicKeys, pubkeyAlice)
 	importMultisigParams.PublicKeys = append(importMultisigParams.PublicKeys, pubkeyBob)
 	importMultisigParams.PublicKeys = append(importMultisigParams.PublicKeys, pubkeyPallet)
@@ -108,9 +110,10 @@ func TestGetTransactions(t *testing.T) {
 	//	    "skip": 0
 	//  	}`
 
-	var getTransactionsParams GetTransactionsParams
+	var getTransactionsParams adaptor.GetTransactionsParams
 	//	getTransactionsParams.Account = "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"
-	getTransactionsParams.Account = "2NGDzMbWC7Q1tv3bHc9B8FytBbKEwXJSgkg"
+	//	getTransactionsParams.Account = "2NGDzMbWC7Q1tv3bHc9B8FytBbKEwXJSgkg"
+	getTransactionsParams.Account = "2N2ApYikZS6mVUeWLVqVpDVtLWuE1ufwam2"
 	getTransactionsParams.Count = 10
 
 	//	testResult := "1696a64fc031f19fe1f80dc1c78c9c8af1bd018ad1bf82ddeb7e2edb900b7b89"

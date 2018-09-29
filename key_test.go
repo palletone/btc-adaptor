@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"testing"
+
+	"github.com/palletone/adaptor"
 )
 
 func TestNewPrivateKey(t *testing.T) {
@@ -58,7 +60,7 @@ func TestCreateMultiSigAddress(t *testing.T) {
 	pubkeyAlice := "03940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d5410514"
 	pubkeyBob := "020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb"
 	pubkeyPallet := "029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef5"
-	var createMultiSigParams CreateMultiSigParams
+	var createMultiSigParams adaptor.CreateMultiSigParams
 	createMultiSigParams.PublicKeys = append(createMultiSigParams.PublicKeys, pubkeyAlice)
 	createMultiSigParams.PublicKeys = append(createMultiSigParams.PublicKeys, pubkeyBob)
 	createMultiSigParams.PublicKeys = append(createMultiSigParams.PublicKeys, pubkeyPallet)
@@ -66,7 +68,7 @@ func TestCreateMultiSigAddress(t *testing.T) {
 	createMultiSigParams.N = 3
 
 	//	resultMain := CreateMultiSigAddress(params, NETID_MAIN)
-	resultMain, err := CreateMultiSigAddress(&createMultiSigParams, NETID_MAIN)
+	resultMain, err := CreateMultiSigAddress(&createMultiSigParams, adaptor.NETID_MAIN)
 	if err != nil {
 		t.Errorf(err.Error())
 		return

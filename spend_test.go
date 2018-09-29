@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/palletone/adaptor"
 )
 
 func TestSignTransaction(t *testing.T) {
@@ -15,7 +17,7 @@ func TestSignTransaction(t *testing.T) {
 	}
 	theComplete := `"complete":true`
 
-	params2In1Out := &SignTransactionParams{
+	params2In1Out := &adaptor.SignTransactionParams{
 		TransactionHex: "0100000002897b0b90db2e7eebdd82bfd18a01bdf18a9c8cc7c10df8e19ff131c04fa696160000000000ffffffffea60d9d11cc3e40e17f068ca1191ff5d3ec11d016393addf63305001ce813c990000000000ffffffff01f85b0c09000000001976a9140f08e55bcfc207632d2dcfc3d4db4b6d8d91b22e88ac00000000",
 		RedeemHex:      "",
 	}
@@ -40,7 +42,7 @@ func TestSignTransaction(t *testing.T) {
 	//"privkeys": ["cUakDAWEeNeXTo3B93WBs9HRMfaFDegXcbEGooLz8BSxRBfmpYcX"]
 	//}`
 
-	params := &SignTransactionParams{
+	params := &adaptor.SignTransactionParams{
 		TransactionHex: "010000000236045404e65bd741109db92227ca0dc9274ef717a6612c96cd77b24a17d1bcd70000000000ffffffff7c1f7d5407b41abf29d41cf6f122ef2d40f76d956900d2c89314970951ef5b940000000000ffffffff014431d309000000001976a914bddc9a62e9b7c3cfdbe1c817520e24e32c339f3288ac00000000",
 		RedeemHex:      "522103940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d541051421020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb21029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef553ae",
 	}
@@ -63,7 +65,7 @@ func TestSignTransaction(t *testing.T) {
 	//"redeemhex": "522103940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d541051421020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb21029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef553ae",
 	//"privkeys": ["cQJB6w8SxVNoprVwp2xyxUFxvExMbpR2qj3banXYYXmhtTc1WxC8"]
 	//}`
-	paramsSigned := &SignTransactionParams{
+	paramsSigned := &adaptor.SignTransactionParams{
 		TransactionHex: "010000000236045404e65bd741109db92227ca0dc9274ef717a6612c96cd77b24a17d1bcd700000000b400473044022024e6a6ca006f25ccd3ebf5dadf21397a6d7266536cd336061cd17cff189d95e402205af143f6726d75ac77bc8c80edcb6c56579053d2aa31601b23bc8da41385dd86014c69522103940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d541051421020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb21029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef553aeffffffff7c1f7d5407b41abf29d41cf6f122ef2d40f76d956900d2c89314970951ef5b9400000000b40047304402206a1d7a2ae07840957bee708b6d3e1fbe7858760ac378b1e21209b348c1e2a5c402204255cd4cd4e5b5805d44bbebe7464aa021377dca5fc6bf4a5632eb2d8bc9f9e4014c69522103940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d541051421020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb21029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef553aeffffffff014431d309000000001976a914bddc9a62e9b7c3cfdbe1c817520e24e32c339f3288ac00000000",
 		RedeemHex:      "522103940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d541051421020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb21029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef553ae",
 	}
@@ -97,7 +99,7 @@ func TestSignTransaction(t *testing.T) {
 	//"redeemhex": "",
 	//"privkeys": ["cTMEdR2JxzVMTJCVsCbuStzypevdchxneREZoJjLnmiMVGHTr8wZ"]
 	//}`
-	paramsTransToMultsigAddr := &SignTransactionParams{
+	paramsTransToMultsigAddr := &adaptor.SignTransactionParams{
 		TransactionHex: "010000000145796293a6d01a72d2b160dbaefe27acb659ad72d1a6d47b2e204c7be221998d0100000000ffffffff0200e1f5050000000017a9147e037d8b8093a7cf3a6ec83aa8c852761a5d0cce8730033c05000000001976a914bddc9a62e9b7c3cfdbe1c817520e24e32c339f3288ac00000000",
 		RedeemHex:      "",
 	}

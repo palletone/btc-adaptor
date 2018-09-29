@@ -30,19 +30,11 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcutil"
+
+	"github.com/palletone/adaptor"
 )
 
-//==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ===
-type RawTransactionGenParams struct {
-	Inputs   []Input  `json:"inputs"`
-	Outputs  []Output `json:"outputs"`
-	Locktime int64    `json:"locktime"`
-}
-type RawTransactionGenResult struct {
-	Rawtx string `json:"rawtx"`
-}
-
-func RawTransactionGen(rawTransactionGenParams *RawTransactionGenParams, rpcParams *RPCParams, netID int) (string, error) {
+func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
 	//	//convert params from json format
 	//	var rawTransactionGenParams RawTransactionGenParams
 	//	err := json.Unmarshal([]byte(params), &rawTransactionGenParams)
@@ -102,7 +94,7 @@ func RawTransactionGen(rawTransactionGenParams *RawTransactionGenParams, rpcPara
 		return "", err
 	}
 	//result for return
-	var rawTransactionGenResult RawTransactionGenResult
+	var rawTransactionGenResult adaptor.RawTransactionGenResult
 	rawTransactionGenResult.Rawtx = hex.EncodeToString(buf.Bytes())
 
 	jsonResult, err := json.Marshal(rawTransactionGenResult)
@@ -113,25 +105,7 @@ func RawTransactionGen(rawTransactionGenParams *RawTransactionGenParams, rpcPara
 	return string(jsonResult), nil
 }
 
-type DecodeRawTransactionParams struct {
-	Rawtx string `json:"rawtx"`
-}
-
-type Input struct {
-	Txid string `json:"txid"`
-	Vout uint32 `json:"vout"`
-}
-type Output struct {
-	Address string  `json:"address"`
-	Amount  float64 `json:"amount"`
-}
-type DecodeRawTransactionResult struct {
-	Inputs   []Input  `json:"inputs"`
-	Outputs  []Output `json:"outputs"`
-	Locktime uint32   `json:"locktime"`
-}
-
-func DecodeRawTransaction(decodeRawTransactionParams *DecodeRawTransactionParams, rpcParams *RPCParams) (string, error) {
+func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransactionParams, rpcParams *RPCParams) (string, error) {
 	//	//convert params from json format
 	//	var decodeRawTransactionParams DecodeRawTransactionParams
 	//	err := json.Unmarshal([]byte(params), &decodeRawTransactionParams)
@@ -162,13 +136,13 @@ func DecodeRawTransaction(decodeRawTransactionParams *DecodeRawTransactionParams
 	}
 
 	//result for return
-	var result DecodeRawTransactionResult
+	var result adaptor.DecodeRawTransactionResult
 	result.Locktime = resultTxRaw.LockTime
 	for i, _ := range resultTxRaw.Vin {
-		result.Inputs = append(result.Inputs, Input{resultTxRaw.Vin[i].Txid, resultTxRaw.Vin[i].Vout})
+		result.Inputs = append(result.Inputs, adaptor.Input{resultTxRaw.Vin[i].Txid, resultTxRaw.Vin[i].Vout})
 	}
 	for i, _ := range resultTxRaw.Vout {
-		result.Outputs = append(result.Outputs, Output{resultTxRaw.Vout[i].ScriptPubKey.Addresses[0], resultTxRaw.Vout[i].Value})
+		result.Outputs = append(result.Outputs, adaptor.Output{resultTxRaw.Vout[i].ScriptPubKey.Addresses[0], resultTxRaw.Vout[i].Value})
 	}
 
 	jsonResult, err := json.Marshal(result)
@@ -179,16 +153,7 @@ func DecodeRawTransaction(decodeRawTransactionParams *DecodeRawTransactionParams
 	return string(jsonResult), nil
 }
 
-type GetTransactionByHashParams struct {
-	TxHash string `json:"txhash"`
-}
-
-type GetTransactionByHashResult struct {
-	Inputs  []Input  `json:"inputs"`
-	Outputs []output `json:"outputs"`
-}
-
-func GetTransactionByHash(getTransactionByHashParams *GetTransactionByHashParams, rpcParams *RPCParams) (string, error) {
+func GetTransactionByHash(getTransactionByHashParams *adaptor.GetTransactionByHashParams, rpcParams *RPCParams) (string, error) {
 	//get rpc client
 	client, err := GetClient(rpcParams)
 	if err != nil {
@@ -211,7 +176,7 @@ func GetTransactionByHash(getTransactionByHashParams *GetTransactionByHashParams
 	fmt.Println(msgTx)
 
 	//result for return
-	var getTransactionByHashResult GetTransactionByHashResult
+	var getTransactionByHashResult adaptor.GetTransactionByHashResult
 	for i := range msgTx.TxOut {
 		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
 			msgTx.TxOut[i].PkScript, &chaincfg.TestNet3Params)
@@ -219,11 +184,11 @@ func GetTransactionByHash(getTransactionByHashParams *GetTransactionByHashParams
 			return "", err
 		}
 		getTransactionByHashResult.Outputs = append(getTransactionByHashResult.Outputs,
-			output{uint32(i), addrs[0].String(), msgTx.TxOut[i].Value})
+			adaptor.OutputIndex{uint32(i), addrs[0].String(), msgTx.TxOut[i].Value})
 	}
 	for i := range msgTx.TxIn {
 		getTransactionByHashResult.Inputs = append(getTransactionByHashResult.Inputs,
-			Input{msgTx.TxIn[i].PreviousOutPoint.Hash.String(), msgTx.TxIn[i].PreviousOutPoint.Index})
+			adaptor.Input{msgTx.TxIn[i].PreviousOutPoint.Hash.String(), msgTx.TxIn[i].PreviousOutPoint.Index})
 
 	}
 

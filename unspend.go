@@ -34,6 +34,8 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcutil"
+
+	"github.com/palletone/adaptor"
 )
 
 //==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ===
@@ -90,7 +92,7 @@ type GetUTXOParams struct {
 	MaximumCount int      `json:"maximumCount"`
 }
 
-func GetUnspendUTXO(params string, rpcParams *RPCParams, netID int) string {
+func GetUnspendUTXO(params string, rpcParams *RPCParams, netID adaptor.NetID) string {
 	//convert params from json format
 	var getUTXOParams GetUTXOParams
 	err := json.Unmarshal([]byte(params), &getUTXOParams)
@@ -159,15 +161,7 @@ func GetUnspendUTXO(params string, rpcParams *RPCParams, netID int) string {
 	return string(jsonResult)
 }
 
-type GetBalanceParams struct {
-	Address string `json:"address"`
-	Minconf int    `json:"minconf"`
-}
-type GetBalanceResult struct {
-	Value float64 `json:"value"`
-}
-
-func GetBalance(getBalanceParams *GetBalanceParams, rpcParams *RPCParams, netID int) (string, error) {
+func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
 	//	//convert params from json format
 	//	var getBalanceParams GetBalanceParams
 	//	err := json.Unmarshal([]byte(params), &getBalanceParams)
@@ -213,7 +207,7 @@ func GetBalance(getBalanceParams *GetBalanceParams, rpcParams *RPCParams, netID 
 	}
 
 	//compute total Amount for balance
-	var result GetBalanceResult
+	var result adaptor.GetBalanceResult
 	for _, resultOne := range results {
 		result.Value += resultOne.Amount
 	}
@@ -226,17 +220,7 @@ func GetBalance(getBalanceParams *GetBalanceParams, rpcParams *RPCParams, netID 
 	return string(jsonResult), nil
 }
 
-type ImportMultisigParams struct {
-	PublicKeys   []string `json:"publicKeys"`
-	MRequires    int      `json:"mRequires"`
-	WalletPasswd string   `json:"walletPasswd"`
-}
-
-type ImportMultisigResult struct {
-	Import bool `json:"import"`
-}
-
-func ImportMultisig(importMultisigParams *ImportMultisigParams, rpcParams *RPCParams, netID int) (string, error) {
+func ImportMultisig(importMultisigParams *adaptor.ImportMultisigParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
 	//	//convert params from json format
 	//	var importMultisigParams ImportMultisigParams
 	//	err := json.Unmarshal([]byte(params), &importMultisigParams)
@@ -295,7 +279,7 @@ func ImportMultisig(importMultisigParams *ImportMultisigParams, rpcParams *RPCPa
 	}
 
 	//
-	var result ImportMultisigResult
+	var result adaptor.ImportMultisigResult
 	result.Import = true
 
 	jsonResult, err := json.Marshal(result)
@@ -332,34 +316,7 @@ func getAddrValue(client *rpcclient.Client, chainParams *chaincfg.Params,
 	return "", 0
 }
 
-type GetTransactionsParams struct {
-	Account string `json:"account"`
-	Count   int    `json:"count"`
-	Skip    int    `json:"skip"`
-}
-
-type input struct {
-	TxHash string `json:"txHash"`
-	Index  uint32 `json:"index"`
-	Addr   string `json:"addr"`
-	Value  int64  `json:"value"`
-}
-type output struct {
-	Index uint32 `json:"index"`
-	Addr  string `json:"addr"`
-	Value int64  `json:"value"` //satoshi
-}
-type transaction struct {
-	TxHash        string   `json:"txHash"`
-	BlanceChanged int64    `json:"blanceChanged"`
-	Inputs        []input  `json:"inputs"`
-	Outputs       []output `json:"outputs"`
-}
-type transactionsResult struct {
-	Transactions []transaction `json:"transactions"`
-}
-
-func GetTransactions(getTransactionsParams *GetTransactionsParams, rpcParams *RPCParams, netID int) (string, error) {
+func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
 	//	//convert params from json format
 	//	var getTransactionsParams GetTransactionsParams
 	//	err := json.Unmarshal([]byte(params), &getTransactionsParams)
@@ -400,10 +357,10 @@ func GetTransactions(getTransactionsParams *GetTransactionsParams, rpcParams *RP
 	msgIndex := map[string]int{}
 
 	//the result for return
-	var transAll transactionsResult
+	var transAll adaptor.TransactionsResult
 	for index, msgTx := range msgTxs {
 		//one transaction result
-		var transOne transaction
+		var transOne adaptor.Transaction
 		transOne.TxHash = msgTx.TxHash().String()
 
 		//transaction inputs
@@ -415,7 +372,7 @@ func GetTransactions(getTransactionsParams *GetTransactionsParams, rpcParams *RP
 			if exist { //spend
 				isSpend = true
 				transOne.Inputs = append(transOne.Inputs,
-					input{in.PreviousOutPoint.Hash.String(),
+					adaptor.InputIndex{in.PreviousOutPoint.Hash.String(),
 						in.PreviousOutPoint.Index,
 						transAll.Transactions[index].Outputs[in.PreviousOutPoint.Index].Addr,
 						transAll.Transactions[index].Outputs[in.PreviousOutPoint.Index].Value})
@@ -428,7 +385,7 @@ func GetTransactions(getTransactionsParams *GetTransactionsParams, rpcParams *RP
 					continue
 				}
 				transOne.Inputs = append(transOne.Inputs,
-					input{in.PreviousOutPoint.Hash.String(),
+					adaptor.InputIndex{in.PreviousOutPoint.Hash.String(),
 						in.PreviousOutPoint.Index,
 						addr, value})
 			}
@@ -442,7 +399,7 @@ func GetTransactions(getTransactionsParams *GetTransactionsParams, rpcParams *RP
 				continue
 			} else {
 				transOne.Outputs = append(transOne.Outputs,
-					output{uint32(outIndex), addrs[0].String(), out.Value})
+					adaptor.OutputIndex{uint32(outIndex), addrs[0].String(), out.Value})
 				if addrs[0].String() == getTransactionsParams.Account {
 					msgIndex[msgTx.TxHash().String()+strconv.Itoa(outIndex)] = index
 				}
