@@ -29,7 +29,7 @@ type RPCParams struct {
 }
 
 type AdaptorBTC struct {
-	NetID adaptor.NetID
+	NetID int
 	RPCParams
 }
 

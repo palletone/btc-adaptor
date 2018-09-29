@@ -92,7 +92,7 @@ type GetUTXOParams struct {
 	MaximumCount int      `json:"maximumCount"`
 }
 
-func GetUnspendUTXO(params string, rpcParams *RPCParams, netID adaptor.NetID) string {
+func GetUnspendUTXO(params string, rpcParams *RPCParams, netID int) string {
 	//convert params from json format
 	var getUTXOParams GetUTXOParams
 	err := json.Unmarshal([]byte(params), &getUTXOParams)
@@ -161,7 +161,7 @@ func GetUnspendUTXO(params string, rpcParams *RPCParams, netID adaptor.NetID) st
 	return string(jsonResult)
 }
 
-func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
+func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams, netID int) (string, error) {
 	//	//convert params from json format
 	//	var getBalanceParams GetBalanceParams
 	//	err := json.Unmarshal([]byte(params), &getBalanceParams)
@@ -220,7 +220,7 @@ func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams
 	return string(jsonResult), nil
 }
 
-func ImportMultisig(importMultisigParams *adaptor.ImportMultisigParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
+func ImportMultisig(importMultisigParams *adaptor.ImportMultisigParams, rpcParams *RPCParams, netID int) (string, error) {
 	//	//convert params from json format
 	//	var importMultisigParams ImportMultisigParams
 	//	err := json.Unmarshal([]byte(params), &importMultisigParams)
@@ -316,7 +316,7 @@ func getAddrValue(client *rpcclient.Client, chainParams *chaincfg.Params,
 	return "", 0
 }
 
-func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
+func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcParams *RPCParams, netID int) (string, error) {
 	//	//convert params from json format
 	//	var getTransactionsParams GetTransactionsParams
 	//	err := json.Unmarshal([]byte(params), &getTransactionsParams)

@@ -35,7 +35,7 @@ import (
 	"github.com/palletone/adaptor"
 )
 
-func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
+func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, rpcParams *RPCParams, netID int) (string, error) {
 	//	//convert params from json format
 	//	var signTransactionParams SignTransactionParams
 	//	err := json.Unmarshal([]byte(params), &signTransactionParams)
@@ -189,7 +189,7 @@ func SendTransaction(params string, rpcParams *RPCParams) string {
 	return string(jsonResult)
 }
 
-func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
+func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams, netID int) (string, error) {
 	//check empty string
 	if "" == signTxSendParams.TransactionHex {
 		return "", errors.New("Params error : NO TransactionHex.")
@@ -358,7 +358,7 @@ func checkScripts(tx *wire.MsgTx, idx int, inputAmt int64,
 func MultisignOneByOne(prevTxHash string, index uint,
 	amount int64, fee int64, recvAddress string,
 	redeem string, partSigedScript string,
-	wifKey string, netID adaptor.NetID) (signedTransaction, newSigedScript string, complete bool) {
+	wifKey string, netID int) (signedTransaction, newSigedScript string, complete bool) {
 	//chainnet
 	var realNet *chaincfg.Params
 	if netID == NETID_MAIN {

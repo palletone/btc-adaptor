@@ -34,7 +34,7 @@ import (
 	"github.com/palletone/adaptor"
 )
 
-func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams, rpcParams *RPCParams, netID adaptor.NetID) (string, error) {
+func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams, rpcParams *RPCParams, netID int) (string, error) {
 	//	//convert params from json format
 	//	var rawTransactionGenParams RawTransactionGenParams
 	//	err := json.Unmarshal([]byte(params), &rawTransactionGenParams)

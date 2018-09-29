@@ -32,7 +32,7 @@ import (
 	"github.com/palletone/adaptor"
 )
 
-func NewPrivateKey(netID adaptor.NetID) (wifPriKey string) {
+func NewPrivateKey(netID int) (wifPriKey string) {
 	//rand bytes
 	randBytes := make([]byte, 32)
 	_, err := rand.Read(randBytes)
@@ -57,7 +57,7 @@ func NewPrivateKey(netID adaptor.NetID) (wifPriKey string) {
 	return wif.String()
 }
 
-func GetPublicKey(wifPriKey string, netID adaptor.NetID) (pubKey string) {
+func GetPublicKey(wifPriKey string, netID int) (pubKey string) {
 	//decode to wif
 	wif, err := btcutil.DecodeWIF(wifPriKey)
 	if err != nil {
@@ -77,7 +77,7 @@ func GetPublicKey(wifPriKey string, netID adaptor.NetID) (pubKey string) {
 	return addressPubKey.String()
 }
 
-func GetAddress(wifPriKey string, netID adaptor.NetID) (address string) {
+func GetAddress(wifPriKey string, netID int) (address string) {
 	//decode to wif
 	wif, err := btcutil.DecodeWIF(wifPriKey)
 	if err != nil {
@@ -98,7 +98,7 @@ func GetAddress(wifPriKey string, netID adaptor.NetID) (address string) {
 	return addressPubKey.EncodeAddress()
 }
 
-func GetAddressByPubkey(pubKeyHex string, netID adaptor.NetID) (string, error) {
+func GetAddressByPubkey(pubKeyHex string, netID int) (string, error) {
 	//
 	pubKeyBytes, err := hex.DecodeString(pubKeyHex)
 	if err != nil {
@@ -119,7 +119,7 @@ func GetAddressByPubkey(pubKeyHex string, netID adaptor.NetID) (string, error) {
 	return addressPubKey.EncodeAddress(), nil
 }
 
-func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, netID adaptor.NetID) (string, error) {
+func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, netID int) (string, error) {
 	//	var createMultiSigParams CreateMultiSigParams
 	//	err := json.Unmarshal([]byte(params), &createMultiSigParams)
 	//	if err != nil {
