@@ -4,7 +4,6 @@
 
 ## 下载源码、编译
 
-### btcd
 
 1.下载 btcd 代码
 
@@ -22,68 +21,6 @@ cd F:\work\src\github.com\btcsuite\btcd
 go build
 ```
 
-### btcwallet
-
-1.下载 btcwallet 代码
-
-推荐使用glide下载，
-```
-git clone https://github.com/btcsuite/btcwallet
-
-glide mirror set https://golang.org/x/mobile https://github.com/golang/mobile --vcs git
-glide mirror set https://golang.org/x/crypto https://github.com/golang/crypto --vcs git
-glide mirror set https://golang.org/x/net https://github.com/golang/net --vcs git
-glide mirror set https://golang.org/x/tools https://github.com/golang/tools --vcs git
-glide mirror set https://golang.org/x/text https://github.com/golang/text --vcs git
-glide mirror set https://golang.org/x/image https://github.com/golang/image --vcs git
-glide mirror set https://golang.org/x/sys https://github.com/golang/sys --vcs git
-glide mirror set https://google.golang.org/grpc https://github.com/grpc/grpc-go --vcs git
-glide mirror set https://google.golang.org/genproto https://github.com/google/go-genproto --vcs git
-
-cd $GOPATH/src/github.com/btcsuite/btcwallet
-glide install
-```
-
-或者依次下载依赖的各个库，如下：
-
-linux need clone `github.com/golang.org/x/sys`
-
-```
-cd /home/pallet/go/src/golang.org/x
-git clone https://github.com/golang/sys.git
-```
-
-```
-mkdir F:\work\src\google.golang.org
-cd F:\work\src\google.golang.org
-git clone https://github.com/grpc/grpc-go.git
-rename grpc-go grpc
-git clone https://github.com/google/go-genproto.git
-rename go-genproto genproto
-
-cd F:\work\src\golang.org\x
-git clone https://github.com/golang/net.git
-git clone https://github.com/golang/text.git
-
-go get -u github.com/aead/siphash
-go get -u github.com/coreos/bbolt
-go get -u github.com/davecgh/go-spew/spew
-go get -u github.com/golang/protobuf/proto
-go get -u github.com/jessevdk/go-flags
-go get -u github.com/jrick/logrotate/rotator
-go get -u github.com/kkdai/bstream
-go get -u github.com/lightninglabs/gozmq
-go get -u github.com/lightninglabs/neutrino
-
-go get -u github.com/btcsuite/btcwallet
-```
-
-2.编译出 btcwallet 可执行程序
-
-```
-cd F:\work\src\github.com\btcsuite\btcwallet
-go build
-```
 
 
 ## 启动
@@ -98,18 +35,6 @@ cd F:\work\src\github.com\btcsuite\btcd
 -u 是 rpcuser ，-P 是 rpcpasswd ， --datadir 是区块数据目录， --testnet 是指定测试链
 去掉参数 --testnet 即是正式链
 --txindex 是建立交易索引， --addrindex 是建立地址索引，两者顺序不能颠倒
-
-+ 启动 btcwallet
-
-先创建钱包，再启动
-
-```
-cd F:\work\src\github.com\btcsuite\btcwallet
-.\btcwallet.exe -u test -P 123456 --datadir "d:\\test\\" --create --testnet
-.\btcwallet.exe -u test -P 123456 --datadir "d:\\test\\" --testnet
-```
--u 是 rpcuser ，-P 是 rpcpasswd ， -datadir 是钱包数据目录， --testnet 是指定测试链
-去掉参数 --testnet 即是正式链
 
 
 
@@ -139,37 +64,3 @@ F:\work\src\github.com\btcsuite\btcd>.\btcd.exe -u test -P 123456 --datadir "d:\
 2018-06-27 13:55:37.030 [INF] SYNC: New valid peer 172.105.194.235:18333 (outbound) (/Satoshi:0.16.0(bitcore)/)
 ```
 
-```
-F:\work\src\github.com\btcsuite\btcwallet>.\btcwallet.exe -u test -P 123456 --datadir "d:\\test\\" --create --testnet
-datadir option has been replaced by appdata -- please update your config
-Enter the private passphrase for your new wallet:
-Confirm passphrase:
-Do you want to add an additional layer of encryption for public data? (n/no/y/yes) [no]:
-Do you have an existing wallet seed you want to use? (n/no/y/yes) [no]:
-Your wallet generation seed is:
-de37216919d23faf454a37f2efa73e5207487a1526a196715d381662d9acded4
-IMPORTANT: Keep the seed in a safe place as you
-will NOT be able to restore your wallet without it.
-Please keep in mind that anyone who has access
-to the seed can also restore your wallet thereby
-giving them access to all your funds, so it is
-imperative that you keep it in a secure location.
-Once you have stored the seed in a safe and secure location, enter "OK" to continue: OK
-Creating the wallet...
-2018-06-27 13:52:53.799 [INF] WLLT: Opened wallet
-The wallet has been created successfully.
-F:\work\src\github.com\btcsuite\btcwallet>
-```
-
-```
-F:\work\src\github.com\btcsuite\btcwallet>.\btcwallet.exe -u test -P 123456 --datadir "d:\\test\\" --testnet
-datadir option has been replaced by appdata -- please update your config
-2018-06-27 13:53:08.999 [WRN] BTCW: open d:\test\btcwallet.conf: The system cannot find the file specified.
-2018-06-27 13:53:09.023 [INF] BTCW: Version 0.7.0-alpha
-2018-06-27 13:53:09.023 [INF] BTCW: Generating TLS certificates...
-2018-06-27 13:53:09.058 [INF] BTCW: Done generating TLS certificates
-2018-06-27 13:53:09.058 [INF] RPCS: Listening on 127.0.0.1:18332
-2018-06-27 13:53:09.058 [INF] RPCS: Listening on [::1]:18332
-2018-06-27 13:53:09.058 [INF] BTCW: Attempting RPC client connection to localhost:18334
-2018-06-27 13:53:09.801 [INF] WLLT: Opened wallet
-```
