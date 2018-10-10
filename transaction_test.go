@@ -10,7 +10,7 @@ import (
 
 func TestRawTransactionGen(t *testing.T) {
 	rpcParams := RPCParams{
-		Host:      "localhost:18332",
+		Host:      "localhost:18334",
 		RPCUser:   "zxl",
 		RPCPasswd: "123456",
 		CertPath:  GCertPath,
@@ -65,7 +65,7 @@ func TestRawTransactionGen(t *testing.T) {
 func TestDecodeRawTransaction(t *testing.T) {
 
 	rpcParams := RPCParams{
-		Host:      "localhost:18332",
+		Host:      "localhost:18334",
 		RPCUser:   "zxl",
 		RPCPasswd: "123456",
 		CertPath:  GCertPath,
@@ -110,7 +110,7 @@ func TestDecodeRawTransaction(t *testing.T) {
 
 func TestGetTransactionByHash(t *testing.T) {
 	rpcParams := RPCParams{
-		Host:      "localhost:18332",
+		Host:      "localhost:18334",
 		RPCUser:   "zxl",
 		RPCPasswd: "123456",
 		CertPath:  GCertPath,

@@ -22,7 +22,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"strings"
+	"fmt"
+
+	"github.com/btcsuite/btcd/rpcclient"
+
+	//"github.com/btcsuite/btcd/rpcclient/chain"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/btcjson"
@@ -35,29 +39,306 @@ import (
 	"github.com/palletone/adaptor"
 )
 
-func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, rpcParams *RPCParams, netID int) (string, error) {
-	//	//convert params from json format
-	//	var signTransactionParams SignTransactionParams
-	//	err := json.Unmarshal([]byte(params), &signTransactionParams)
-	//	if err != nil {
-	//		return err.Error()
-	//	}
+// decodeHexStr decodes the hex encoding of a string, possibly prepending a
+// leading '0' character if there is an odd number of bytes in the hex string.
+// This is to prevent an error for an invalid hex string when using an odd
+// number of bytes when calling hex.Decode.
+func decodeHexStr(hexStr string) ([]byte, error) {
+	if len(hexStr)%2 != 0 {
+		hexStr = "0" + hexStr
+	}
+	decoded, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, &btcjson.RPCError{
+			Code:    btcjson.ErrRPCDecodeHexString,
+			Message: "Hex string decode failed: " + err.Error(),
+		}
+	}
+	return decoded, nil
+}
 
+// signRawTransaction handles the signrawtransaction command.
+func signRawTransactionCmd(icmd interface{}, chainParams *chaincfg.Params,
+	chainClient *rpcclient.Client) (interface{}, error) {
+	cmd := icmd.(*btcjson.SignRawTransactionCmd)
+
+	serializedTx, err := decodeHexStr(cmd.RawTx)
+	if err != nil {
+		return nil, err
+	}
+	var tx wire.MsgTx
+	err = tx.Deserialize(bytes.NewBuffer(serializedTx))
+	if err != nil {
+		return nil, errors.New("TX decode failed")
+	}
+
+	var hashType txscript.SigHashType
+	switch *cmd.Flags {
+	case "ALL":
+		hashType = txscript.SigHashAll
+	case "NONE":
+		hashType = txscript.SigHashNone
+	case "SINGLE":
+		hashType = txscript.SigHashSingle
+	case "ALL|ANYONECANPAY":
+		hashType = txscript.SigHashAll | txscript.SigHashAnyOneCanPay
+	case "NONE|ANYONECANPAY":
+		hashType = txscript.SigHashNone | txscript.SigHashAnyOneCanPay
+	case "SINGLE|ANYONECANPAY":
+		hashType = txscript.SigHashSingle | txscript.SigHashAnyOneCanPay
+	default:
+		return nil, errors.New("Invalid sighash parameter")
+	}
+
+	// TODO: really we probably should look these up with btcd anyway to
+	// make sure that they match the blockchain if present.
+	inputs := make(map[wire.OutPoint][]byte)
+	scripts := make(map[string][]byte)
+	var cmdInputs []btcjson.RawTxInput
+	if cmd.Inputs != nil {
+		cmdInputs = *cmd.Inputs
+	}
+	for _, rti := range cmdInputs {
+		inputHash, err := chainhash.NewHashFromStr(rti.Txid)
+		if err != nil {
+			return nil, err
+		}
+
+		script, err := decodeHexStr(rti.ScriptPubKey)
+		if err != nil {
+			return nil, err
+		}
+
+		// redeemScript is only actually used iff the user provided
+		// private keys. In which case, it is used to get the scripts
+		// for signing. If the user did not provide keys then we always
+		// get scripts from the wallet.
+		// Empty strings are ok for this one and hex.DecodeString will
+		// DTRT.
+		if cmd.PrivKeys != nil && len(*cmd.PrivKeys) != 0 {
+			redeemScript, err := decodeHexStr(rti.RedeemScript)
+			if err != nil {
+				return nil, err
+			}
+
+			addr, err := btcutil.NewAddressScriptHash(redeemScript,
+				chainParams)
+			if err != nil {
+				return nil, err
+			}
+			scripts[addr.String()] = redeemScript
+		}
+		inputs[wire.OutPoint{
+			Hash:  *inputHash,
+			Index: rti.Vout,
+		}] = script
+	}
+
+	// Now we go and look for any inputs that we were not provided by
+	// querying btcd with getrawtransaction. We queue up a bunch of async
+	// requests and will wait for replies after we have checked the rest of
+	// the arguments.
+	requested := make(map[wire.OutPoint]rpcclient.FutureGetTxOutResult)
+	for _, txIn := range tx.TxIn {
+		// Did we get this outpoint from the arguments?
+		if _, ok := inputs[txIn.PreviousOutPoint]; ok {
+			continue
+		}
+
+		// Asynchronously request the output script.
+		requested[txIn.PreviousOutPoint] = chainClient.GetTxOutAsync(
+			&txIn.PreviousOutPoint.Hash, txIn.PreviousOutPoint.Index,
+			true)
+	}
+
+	// Parse list of private keys, if present. If there are any keys here
+	// they are the keys that we may use for signing. If empty we will
+	// use any keys known to us already.
+	var keys map[string]*btcutil.WIF
+	if cmd.PrivKeys != nil {
+		keys = make(map[string]*btcutil.WIF)
+
+		for _, key := range *cmd.PrivKeys {
+			wif, err := btcutil.DecodeWIF(key)
+			if err != nil {
+				return nil, err
+			}
+
+			if !wif.IsForNet(chainParams) {
+				s := "key network doesn't match wallet's"
+				return nil, errors.New(s)
+			}
+
+			addr, err := btcutil.NewAddressPubKey(wif.SerializePubKey(),
+				chainParams)
+			if err != nil {
+				return nil, err
+			}
+			keys[addr.EncodeAddress()] = wif
+		}
+	}
+
+	// We have checked the rest of the args. now we can collect the async
+	// txs. TODO: If we don't mind the possibility of wasting work we could
+	// move waiting to the following loop and be slightly more asynchronous.
+	for outPoint, resp := range requested {
+		result, err := resp.Receive()
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			s := fmt.Sprintf("the output %s - %d has been spent already", outPoint.Hash, outPoint.Index)
+			return nil, errors.New(s)
+		}
+		script, err := hex.DecodeString(result.ScriptPubKey.Hex)
+		if err != nil {
+			return nil, err
+		}
+		inputs[outPoint] = script
+	}
+
+	// All args collected. Now we can sign all the inputs that we can.
+	// `complete' denotes that we successfully signed all outputs and that
+	// all scripts will run to completion. This is returned as part of the
+	// reply.
+	signErrs, err := SignTransactionReal(&tx, hashType, inputs, keys, scripts, chainParams)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	buf.Grow(tx.SerializeSize())
+
+	// All returned errors (not OOM, which panics) encounted during
+	// bytes.Buffer writes are unexpected.
+	if err = tx.Serialize(&buf); err != nil {
+		panic(err)
+	}
+
+	signErrors := make([]btcjson.SignRawTransactionError, 0, len(signErrs))
+	for _, e := range signErrs {
+		input := tx.TxIn[e.InputIndex]
+		signErrors = append(signErrors, btcjson.SignRawTransactionError{
+			TxID:      input.PreviousOutPoint.Hash.String(),
+			Vout:      input.PreviousOutPoint.Index,
+			ScriptSig: hex.EncodeToString(input.SignatureScript),
+			Sequence:  input.Sequence,
+			Error:     e.Error.Error(),
+		})
+	}
+
+	return btcjson.SignRawTransactionResult{
+		Hex:      hex.EncodeToString(buf.Bytes()),
+		Complete: len(signErrors) == 0,
+		Errors:   signErrors,
+	}, nil
+}
+
+// SignatureError records the underlying error when validating a transaction
+// input signature.
+type SignatureError struct {
+	InputIndex uint32
+	Error      error
+}
+
+func SignTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
+	additionalPrevScripts map[wire.OutPoint][]byte,
+	additionalKeysByAddress map[string]*btcutil.WIF,
+	p2shRedeemScriptsByAddress map[string][]byte, chainParams *chaincfg.Params) ([]SignatureError, error) {
+
+	signErrors := []SignatureError{}
+	//var signErrors []SignatureErroerr := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
+	//addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+	//txmgrNs := dbtx.ReadBucZXL/ket(wtxmgrNamespaceKey)
+	var err error
+	for i, txIn := range tx.TxIn {
+		prevOutScript, ok := additionalPrevScripts[txIn.PreviousOutPoint]
+		if !ok {
+			/*prevHash := &txIn.PreviousOutPoint.Hash
+			prevIndex := txIn.PreviousOutPoint.Index
+			txDetails, err := w.TxStore.TxDetails(txmgrNs, prevHash)
+			if err != nil {
+				return fmt.Errorf("cannot query previous transaction "+
+					"details for %v: %v", txIn.PreviousOutPoint, err)
+			}
+			if txDetails == nil {
+				return fmt.Errorf("%v not found",
+					txIn.PreviousOutPoint)
+			}
+			prevOutScript = txDetails.MsgTx.TxOut[prevIndex].PkScript*/
+		}
+
+		// Set up our callbacks that we pass to txscript so it can
+		// look up the appropriate keys and scripts by address.
+		getKey := txscript.KeyClosure(func(addr btcutil.Address) (*btcec.PrivateKey, bool, error) {
+			if len(additionalKeysByAddress) != 0 {
+				addrStr := addr.EncodeAddress()
+				wif, ok := additionalKeysByAddress[addrStr]
+				if !ok {
+					return nil, false, errors.New("no key for address")
+				}
+				return wif.PrivKey, wif.CompressPubKey, nil
+			}
+			return nil, false, errors.New("no key for address")
+		})
+		getScript := txscript.ScriptClosure(func(addr btcutil.Address) ([]byte, error) {
+			// If keys were provided then we can only use the
+			// redeem scripts provided with our inputs, too.
+			if len(additionalKeysByAddress) != 0 {
+				addrStr := addr.EncodeAddress()
+				script, ok := p2shRedeemScriptsByAddress[addrStr]
+				if !ok {
+					return nil, errors.New("no script for address")
+				}
+				return script, nil
+			}
+			return nil, errors.New("no script for address")
+		})
+
+		// SigHashSingle inputs can only be signed if there's a
+		// corresponding output. However this could be already signed,
+		// so we always verify the output.
+		if (hashType&txscript.SigHashSingle) !=
+			txscript.SigHashSingle || i < len(tx.TxOut) {
+
+			script, err := txscript.SignTxOutput(chainParams,
+				tx, i, prevOutScript, hashType, getKey,
+				getScript, txIn.SignatureScript)
+			// Failure to sign isn't an error, it just means that
+			// the tx isn't complete.
+			if err != nil {
+				signErrors = append(signErrors, SignatureError{
+					InputIndex: uint32(i),
+					Error:      err,
+				})
+				continue
+			}
+			txIn.SignatureScript = script
+		}
+
+		// Either it was already signed or we just signed it.
+		// Find out if it is completely satisfied or still needs more.
+		vm, err := txscript.NewEngine(prevOutScript, tx, i,
+			txscript.StandardVerifyFlags, nil, nil, 0)
+		if err == nil {
+			err = vm.Execute()
+		}
+		if err != nil {
+			signErrors = append(signErrors, SignatureError{
+				InputIndex: uint32(i),
+				Error:      err,
+			})
+		}
+	}
+	//return nil
+	//})
+	return signErrors, err
+}
+
+func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, rpcParams *RPCParams, netID int) (string, error) {
 	//check empty string
 	if "" == signTransactionParams.TransactionHex {
 		return "", errors.New("Params error : NO TransactionHex.")
-	}
-
-	//decode Transaction hexString to bytes
-	rawTXBytes, err := hex.DecodeString(signTransactionParams.TransactionHex)
-	if err != nil {
-		return "", err
-	}
-	//deserialize to MsgTx
-	var tx wire.MsgTx
-	err = tx.Deserialize(bytes.NewReader(rawTXBytes))
-	if err != nil {
-		return "", err
 	}
 
 	//chainnet
@@ -68,25 +349,26 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, rpcPa
 		realNet = &chaincfg.TestNet3Params
 	}
 
-	//get private keys for sign
-	var keys []string
-	for _, key := range signTransactionParams.Privkeys {
-		key = strings.TrimSpace(key) //Trim whitespace
-		if len(key) == 0 {
-			continue
-		}
-		keys = append(keys, key)
-	}
-	if len(keys) == 0 {
-		return "", err
-	}
-
+	var err error
 	//sign the UTXO hash, must know RedeemHex which contains in RawTxInput
 	var rawInputs []btcjson.RawTxInput
 	for {
 		if "" == signTransactionParams.RedeemHex {
 			break
 		}
+
+		//decode Transaction hexString to bytes
+		rawTXBytes, err := hex.DecodeString(signTransactionParams.TransactionHex)
+		if err != nil {
+			break
+		}
+		//deserialize to MsgTx
+		var tx wire.MsgTx
+		err = tx.Deserialize(bytes.NewReader(rawTXBytes))
+		if err != nil {
+			break
+		}
+
 		//decode redeem's hexString to bytes
 		redeem, err := hex.DecodeString(signTransactionParams.RedeemHex)
 		if err != nil {
@@ -104,7 +386,11 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, rpcPa
 				signTransactionParams.RedeemHex}        //redeem
 			rawInputs = append(rawInputs, rawInput)
 		}
+
 		break
+	}
+	if err != nil {
+		return "", err
 	}
 
 	//get rpc client
@@ -114,22 +400,25 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, rpcPa
 	}
 	defer client.Shutdown()
 
+	//
+	var cmd btcjson.SignRawTransactionCmd
+	cmd.RawTx = signTransactionParams.TransactionHex
+	cmd.Inputs = &rawInputs
+	cmd.PrivKeys = &signTransactionParams.Privkeys
+	flags := "ALL"
+	cmd.Flags = &flags
+
 	//if complete ruturn true
-	resultTX, complete, err := client.SignRawTransaction3(&tx, rawInputs, keys)
+	result, err := signRawTransactionCmd(&cmd, realNet, client)
 	if err != nil {
 		return "", err
 	}
 
-	//SerializeSize transaction to bytes
-	bufTX := bytes.NewBuffer(make([]byte, 0, resultTX.SerializeSize()))
-	if err := resultTX.Serialize(bufTX); err != nil {
-		return "", err
-	}
-
 	//result for return
+	signRawResult := result.(btcjson.SignRawTransactionResult)
 	var signTransactionResult adaptor.SignTransactionResult
-	signTransactionResult.TransactionHex = hex.EncodeToString(bufTX.Bytes())
-	signTransactionResult.Complete = complete
+	signTransactionResult.TransactionHex = signRawResult.Hex
+	signTransactionResult.Complete = signRawResult.Complete
 
 	jsonResult, err := json.Marshal(signTransactionResult)
 	if err != nil {
@@ -195,18 +484,6 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 		return "", errors.New("Params error : NO TransactionHex.")
 	}
 
-	//decode Transaction hexString to bytes
-	rawTXBytes, err := hex.DecodeString(signTxSendParams.TransactionHex)
-	if err != nil {
-		return "", err
-	}
-	//deserialize to MsgTx
-	var tx wire.MsgTx
-	err = tx.Deserialize(bytes.NewReader(rawTXBytes))
-	if err != nil {
-		return "", err
-	}
-
 	//chainnet
 	var realNet *chaincfg.Params
 	if netID == NETID_MAIN {
@@ -215,25 +492,26 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 		realNet = &chaincfg.TestNet3Params
 	}
 
-	//get private keys for sign
-	var keys []string
-	for _, key := range signTxSendParams.Privkeys {
-		key = strings.TrimSpace(key) //Trim whitespace
-		if len(key) == 0 {
-			continue
-		}
-		keys = append(keys, key)
-	}
-	if len(keys) == 0 {
-		return "", err
-	}
-
+	var err error
 	//sign the UTXO hash, must know RedeemHex which contains in RawTxInput
 	var rawInputs []btcjson.RawTxInput
 	for {
 		if "" == signTxSendParams.RedeemHex {
 			break
 		}
+
+		//decode Transaction hexString to bytes
+		rawTXBytes, err := hex.DecodeString(signTxSendParams.TransactionHex)
+		if err != nil {
+			break
+		}
+		//deserialize to MsgTx
+		var tx wire.MsgTx
+		err = tx.Deserialize(bytes.NewReader(rawTXBytes))
+		if err != nil {
+			break
+		}
+
 		//decode redeem's hexString to bytes
 		redeem, err := hex.DecodeString(signTxSendParams.RedeemHex)
 		if err != nil {
@@ -248,10 +526,14 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 				txinOne.PreviousOutPoint.Hash.String(), //txid
 				txinOne.PreviousOutPoint.Index,         //outindex
 				hex.EncodeToString(scriptPkScript),     //multisig pay script
-				signTxSendParams.RedeemHex}             //redeem
+				signTxSendParams.RedeemHex}        //redeem
 			rawInputs = append(rawInputs, rawInput)
 		}
+
 		break
+	}
+	if err != nil {
+		return "", err
 	}
 
 	//get rpc client
@@ -261,17 +543,38 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 	}
 	defer client.Shutdown()
 
+	//
+	var cmd btcjson.SignRawTransactionCmd
+	cmd.RawTx = signTxSendParams.TransactionHex
+	cmd.Inputs = &rawInputs
+	cmd.PrivKeys = &signTxSendParams.Privkeys
+	flags := "ALL"
+	cmd.Flags = &flags
+
 	//if complete ruturn true
-	resultTX, complete, err := client.SignRawTransaction3(&tx, rawInputs, keys)
+	result, err := signRawTransactionCmd(&cmd, realNet, client)
 	if err != nil {
 		return "", err
 	}
 
 	//result for return
+	signRawResult := result.(btcjson.SignRawTransactionResult)
 	var signTxSendResult adaptor.SignTxSendResult
-	if complete {
+	if signRawResult.Complete {
+		//decode Transaction hexString to bytes
+		rawTXBytes, err := hex.DecodeString(signRawResult.Hex)
+		if err != nil {
+			return "", err
+		}
+		//deserialize to MsgTx
+		var resultTX wire.MsgTx
+		err = resultTX.Deserialize(bytes.NewReader(rawTXBytes))
+		if err != nil {
+			return "", err
+		}
+
 		//send to network
-		hashTX, err := client.SendRawTransaction(resultTX, false)
+		hashTX, err := client.SendRawTransaction(&resultTX, false)
 		if err != nil {
 			return "", err
 		}
@@ -284,7 +587,7 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 		}
 
 		signTxSendResult.TransactionHex = hex.EncodeToString(bufTX.Bytes())
-		signTxSendResult.Complete = complete
+		signTxSendResult.Complete = true
 	}
 
 	jsonResult, err := json.Marshal(signTxSendResult)

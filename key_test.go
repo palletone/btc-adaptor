@@ -68,7 +68,7 @@ func TestCreateMultiSigAddress(t *testing.T) {
 	createMultiSigParams.N = 3
 
 	//	resultMain := CreateMultiSigAddress(params, NETID_MAIN)
-	resultMain, err := CreateMultiSigAddress(&createMultiSigParams, adaptor.NETID_MAIN)
+	resultMain, err := CreateMultiSigAddress(&createMultiSigParams, NETID_MAIN)
 	if err != nil {
 		t.Errorf(err.Error())
 		return

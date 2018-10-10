@@ -10,30 +10,30 @@ import (
 
 func TestSignTransaction(t *testing.T) {
 	rpcParams := RPCParams{
-		Host:      "localhost:18332",
+		Host:      "localhost:18334",
 		RPCUser:   "zxl",
 		RPCPasswd: "123456",
 		CertPath:  GCertPath,
 	}
 	theComplete := `"complete":true`
 
-	params2In1Out := &adaptor.SignTransactionParams{
-		TransactionHex: "0100000002897b0b90db2e7eebdd82bfd18a01bdf18a9c8cc7c10df8e19ff131c04fa696160000000000ffffffffea60d9d11cc3e40e17f068ca1191ff5d3ec11d016393addf63305001ce813c990000000000ffffffff01f85b0c09000000001976a9140f08e55bcfc207632d2dcfc3d4db4b6d8d91b22e88ac00000000",
-		RedeemHex:      "",
-	}
-	params2In1Out.Privkeys = append(params2In1Out.Privkeys, "cUakDAWEeNeXTo3B93WBs9HRMfaFDegXcbEGooLz8BSxRBfmpYcX")
-
-	//the return 'transactionhex' is used in next step
-	result2In1Out, err := SignTransaction(params2In1Out, &rpcParams, NETID_TEST)
-	if err != nil {
-		fmt.Println(err.Error())
-	} else {
-		if strings.Contains(result2In1Out, theComplete) {
-			t.Errorf("complete - got: true, want: false")
-		}
-		fmt.Println(result2In1Out)
-	}
-	return
+	//	//
+	//	params2In1Out := &adaptor.SignTransactionParams{
+	//		TransactionHex: "0100000002897b0b90db2e7eebdd82bfd18a01bdf18a9c8cc7c10df8e19ff131c04fa696160000000000ffffffffea60d9d11cc3e40e17f068ca1191ff5d3ec11d016393addf63305001ce813c990000000000ffffffff01f85b0c09000000001976a9140f08e55bcfc207632d2dcfc3d4db4b6d8d91b22e88ac00000000",
+	//		RedeemHex:      "",
+	//	}
+	//	params2In1Out.Privkeys = append(params2In1Out.Privkeys, "cUakDAWEeNeXTo3B93WBs9HRMfaFDegXcbEGooLz8BSxRBfmpYcX")
+	//	//the return 'transactionhex' is used in next step
+	//	result2In1Out, err := SignTransaction(params2In1Out, &rpcParams, NETID_TEST)
+	//	if err != nil {
+	//		fmt.Println(err.Error())
+	//	} else {
+	//		if strings.Contains(result2In1Out, theComplete) {
+	//			t.Errorf("complete - got: true, want: false")
+	//		}
+	//		fmt.Println(result2In1Out)
+	//	}
+	//	return
 
 	//from TestRawTransactionGen A --> M2N3
 	//params := `{
@@ -115,7 +115,7 @@ func TestSignTransaction(t *testing.T) {
 
 func TestSendTransaction(t *testing.T) {
 	rpcParams := RPCParams{
-		Host:      "localhost:18332",
+		Host:      "localhost:18334",
 		RPCUser:   "zxl",
 		RPCPasswd: "123456",
 		CertPath:  GCertPath,

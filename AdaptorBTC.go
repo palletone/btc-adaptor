@@ -80,10 +80,6 @@ func (abtc AdaptorBTC) GetTransactions(params *adaptor.GetTransactionsParams) (s
 	return GetTransactions(params, &abtc.RPCParams, abtc.NetID)
 }
 
-func (abtc AdaptorBTC) ImportMultisig(params *adaptor.ImportMultisigParams) (string, error) {
-	return ImportMultisig(params, &abtc.RPCParams, abtc.NetID)
-}
-
 func (abtc AdaptorBTC) SendTransaction(params string) string {
 	return SendTransaction(params, &abtc.RPCParams)
 }
