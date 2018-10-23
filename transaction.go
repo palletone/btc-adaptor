@@ -22,9 +22,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
-
-	"github.com/btcsuite/btcd/txscript"
 
 	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -154,6 +151,12 @@ func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransacti
 }
 
 func GetTransactionByHash(getTransactionByHashParams *adaptor.GetTransactionByHashParams, rpcParams *RPCParams) (string, error) {
+	//covert TxHash
+	hash, err := chainhash.NewHashFromStr(getTransactionByHashParams.TxHash)
+	if err != nil {
+		return "", err
+	}
+
 	//get rpc client
 	client, err := GetClient(rpcParams)
 	if err != nil {
@@ -161,36 +164,24 @@ func GetTransactionByHash(getTransactionByHashParams *adaptor.GetTransactionByHa
 	}
 	defer client.Shutdown()
 
-	//
-	hash, err := chainhash.NewHashFromStr(getTransactionByHashParams.TxHash)
+	//rpc GetRawTransactionVerbose
+	txResult, err := client.GetRawTransactionVerbose(hash)
 	if err != nil {
 		return "", err
 	}
-	//
-	txResult, err := client.GetRawTransaction(hash)
-	if err != nil {
-		return "", err
-	}
-
-	msgTx := txResult.MsgTx()
-	fmt.Println(msgTx)
 
 	//result for return
 	var getTransactionByHashResult adaptor.GetTransactionByHashResult
-	for i := range msgTx.TxOut {
-		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			msgTx.TxOut[i].PkScript, &chaincfg.TestNet3Params)
-		if err != nil {
-			return "", err
-		}
+	for _, out := range txResult.Vout {
 		getTransactionByHashResult.Outputs = append(getTransactionByHashResult.Outputs,
-			adaptor.OutputIndex{uint32(i), addrs[0].String(), msgTx.TxOut[i].Value})
+			adaptor.OutputIndex{out.N, out.ScriptPubKey.Addresses[0], out.Value})
 	}
-	for i := range msgTx.TxIn {
+	for _, in := range txResult.Vin {
 		getTransactionByHashResult.Inputs = append(getTransactionByHashResult.Inputs,
-			adaptor.Input{msgTx.TxIn[i].PreviousOutPoint.Hash.String(), msgTx.TxIn[i].PreviousOutPoint.Index})
-
+			adaptor.Input{in.Txid, in.Vout})
 	}
+	getTransactionByHashResult.Txid = txResult.Txid
+	getTransactionByHashResult.Confirms = txResult.Confirmations
 
 	jsonResult, err := json.Marshal(getTransactionByHashResult)
 	if err != nil {

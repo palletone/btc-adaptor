@@ -8,7 +8,7 @@ import (
 	"github.com/palletone/adaptor"
 )
 
-func TestGetUnspendUTXO(t *testing.T) {
+func TestGetUTXO(t *testing.T) {
 	//	parms := `{"address": "mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt","minconf": 0,"maxconf": 999999,"maximumCount": 10}`
 	//	parms := `{"address": "miZqthevf8LWguQmUR6EwynULqjKmYWxyY","minconf": 0,"maxconf": 999999,"maximumCount": 10}`
 	//	parms := `{"address": "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA","minconf": 0,"maxconf": 999999,"maximumCount": 10}`
@@ -24,7 +24,7 @@ func TestGetUnspendUTXO(t *testing.T) {
 	//	testResult := "101d482b60cd3f74a61ce265d62e383456b9c21c84477931d207ea8f503d84cc"
 	//	testResult := "cdc28467435bb3060333777e289adb200c033eee72c96c68cb9790534516f6eb"
 
-	result := GetUnspendUTXO(parms, &rpcParams, NETID_TEST)
+	result := GetUTXO(parms, &rpcParams, NETID_TEST)
 	//	if !strings.Contains(result, testResult) {
 	//		t.Errorf("unexpected result - got: %v, "+"want: %v", result, testResult)
 	//	}
@@ -41,7 +41,7 @@ func TestGetBalance(t *testing.T) {
 		CertPath:  GCertPath,
 	}
 
-	testResult := `{"value":0}`
+	testResult := `{"value":0.999}`
 
 	//	getBalanceParams := &adaptor.GetBalanceParams{"mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt", 1}
 	getBalanceParams := &adaptor.GetBalanceParams{"mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5", 0}

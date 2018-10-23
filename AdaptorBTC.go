@@ -54,8 +54,8 @@ func (abtc AdaptorBTC) CreateMultiSigAddress(params *adaptor.CreateMultiSigParam
 	return CreateMultiSigAddress(params, abtc.NetID)
 }
 
-func (abtc AdaptorBTC) GetUnspendUTXO(params string) string {
-	return GetUnspendUTXO(params, &abtc.RPCParams, abtc.NetID)
+func (abtc AdaptorBTC) GetUTXO(params string) string {
+	return GetUTXO(params, &abtc.RPCParams, abtc.NetID)
 }
 
 func (abtc AdaptorBTC) RawTransactionGen(params *adaptor.RawTransactionGenParams) (string, error) {

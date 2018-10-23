@@ -22,7 +22,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -30,7 +29,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcutil"
 
 	"github.com/palletone/adaptor"
@@ -102,7 +100,7 @@ type GetUTXOResult struct {
 	UTXOs []UTXO `json:"utxos"`
 }
 
-func GetUnspendUTXO(params string, rpcParams *RPCParams, netID int) string {
+func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 	//convert params from json format
 	var getUTXOParams GetUTXOParams
 	err := json.Unmarshal([]byte(params), &getUTXOParams)
@@ -138,57 +136,48 @@ func GetUnspendUTXO(params string, rpcParams *RPCParams, netID int) string {
 
 	//get all raw transaction
 	var strs []string
-	accout := addr.String()
+	account := addr.String()
 	count := 999999
-	msgTxs, err := client.SearchRawTransactions(addr, 0, count, true, strs)
+	msgTxs, err := client.SearchRawTransactionsVerbose(addr, 0, count, true, false, strs)
 	if err != nil {
 		return "Search : " + err.Error()
 	}
 
 	//save utxo to map, check next one transanction is spend or not
-	outputIndex := map[string]int64{}
+	outputIndex := map[string]float64{}
 	sep := "-"
 
 	//the result for return
 	for _, msgTx := range msgTxs {
+		if int(msgTx.Confirmations) < getUTXOParams.Minconf {
+			continue
+		}
 		//transaction inputs
-		for _, in := range msgTx.TxIn {
+		for _, in := range msgTx.Vin {
 			//check is spend or not
-			_, exist := outputIndex[in.PreviousOutPoint.Hash.String()+sep+
-				strconv.Itoa(int(in.PreviousOutPoint.Index))]
+			_, exist := outputIndex[in.Txid+sep+
+				strconv.Itoa(int(in.Vout))]
 			if exist { //spend
-				delete(outputIndex, in.PreviousOutPoint.Hash.String()+sep+
-					strconv.Itoa(int(in.PreviousOutPoint.Index)))
+				delete(outputIndex, in.Txid+sep+
+					strconv.Itoa(int(in.Vout)))
 			}
 		}
 
 		//transaction outputs
-		for outIndex, out := range msgTx.TxOut {
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.PkScript,
-				&chaincfg.TestNet3Params)
-			if err != nil {
-				continue
-			} else {
-				if addrs[0].String() == accout {
-					//fmt.Println("lock: ", hex.EncodeToString(out.PkScript))
-					outputIndex[msgTx.TxHash().String()+sep+strconv.Itoa(outIndex)] = out.Value
-				}
+		for _, out := range msgTx.Vout {
+			if out.ScriptPubKey.Addresses[0] == account {
+				outputIndex[msgTx.Txid+sep+strconv.Itoa(int(out.N))] = out.Value
 			}
 		}
 	}
 
-	//compute total Amount for balance
+	//
 	var result GetUTXOResult
 	for oneOut, value := range outputIndex {
 		keys := strings.Split(oneOut, sep)
 		if len(keys) == 2 {
 			vout, _ := strconv.Atoi(keys[1])
-			//remove e+8
-			bigFloat := new(big.Float)
-			bigFloat.SetInt64(value)
-			bigFloat.Mul(bigFloat, big.NewFloat(1e-8))
-			amount, _ := bigFloat.Float64()
-			oneUTXO := UTXO{keys[0], uint32(vout), amount}
+			oneUTXO := UTXO{keys[0], uint32(vout), value}
 			result.UTXOs = append(result.UTXOs, oneUTXO)
 		} else {
 			return "Process fatal error : key invalid."
@@ -237,109 +226,48 @@ func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams
 	var strs []string
 	account := addrs[0].String()
 	count := 999999
-	msgTxs, err := client.SearchRawTransactions(addrs[0], 0, count, true, strs)
+	msgTxs, err := client.SearchRawTransactionsVerbose(addrs[0], 0, count, true, false, strs)
 	if err != nil {
 		return "", err
 	}
 
 	//save utxo to map, check next one transanction is spend or not
-	msgIndex := map[string]int{}
+	outputIndex := map[string]float64{}
+	sep := "-"
 
 	//the result for return
-	var transAll adaptor.TransactionsResult
-	for index, msgTx := range msgTxs {
-		//one transaction result
-		var transOne adaptor.Transaction
-		transOne.TxHash = msgTx.TxHash().String()
-
-		//		jsonTX, _ := json.Marshal(msgTx)
-		//		fmt.Println(string(jsonTX))
-
+	for _, msgTx := range msgTxs {
+		if int(msgTx.Confirmations) < getBalanceParams.Minconf {
+			continue
+		}
 		//transaction inputs
-		isSpend := false
-		for _, in := range msgTx.TxIn {
+		for _, in := range msgTx.Vin {
 			//check is spend or not
-			index, exist := msgIndex[in.PreviousOutPoint.Hash.String()+
-				strconv.Itoa(int(in.PreviousOutPoint.Index))]
+			_, exist := outputIndex[in.Txid+sep+
+				strconv.Itoa(int(in.Vout))]
 			if exist { //spend
-				isSpend = true
-				transOne.Inputs = append(transOne.Inputs,
-					adaptor.InputIndex{in.PreviousOutPoint.Hash.String(),
-						in.PreviousOutPoint.Index,
-						transAll.Transactions[index].Outputs[in.PreviousOutPoint.Index].Addr,
-						transAll.Transactions[index].Outputs[in.PreviousOutPoint.Index].Value})
-			} else { //recv
-				//to get addr and value
-				addr, value := getAddrValue(client, realNet,
-					&in.PreviousOutPoint.Hash,
-					int(in.PreviousOutPoint.Index))
-				if 0 == value {
-					continue
-				}
-				transOne.Inputs = append(transOne.Inputs,
-					adaptor.InputIndex{in.PreviousOutPoint.Hash.String(),
-						in.PreviousOutPoint.Index,
-						addr, value})
+				delete(outputIndex, in.Txid+sep+
+					strconv.Itoa(int(in.Vout)))
 			}
 		}
 
 		//transaction outputs
-		for outIndex, out := range msgTx.TxOut {
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.PkScript,
-				&chaincfg.TestNet3Params)
-			if err != nil {
-				continue
-			} else {
-				transOne.Outputs = append(transOne.Outputs,
-					adaptor.OutputIndex{uint32(outIndex), addrs[0].String(), out.Value})
-				if addrs[0].String() == account {
-					msgIndex[msgTx.TxHash().String()+strconv.Itoa(outIndex)] = index
-				}
+		for _, out := range msgTx.Vout {
+			if out.ScriptPubKey.Addresses[0] == account {
+				outputIndex[msgTx.Txid+sep+strconv.Itoa(int(out.N))] = out.Value
 			}
 		}
-
-		//calculate blancechanged
-		if isSpend {
-			totalInput := int64(0)
-			for _, in := range transOne.Inputs {
-				if account == in.Addr {
-					totalInput += in.Value
-				}
-			}
-			totalOutput := int64(0)
-			for _, out := range transOne.Outputs {
-				if account == out.Addr {
-					totalOutput += out.Value
-				}
-			}
-			//spend return detract from total input
-			transOne.BlanceChanged = totalOutput - totalInput
-		} else {
-			totalRecv := int64(0)
-			for _, out := range transOne.Outputs {
-				if account == out.Addr {
-					totalRecv += out.Value
-				}
-			}
-			transOne.BlanceChanged = totalRecv
-		}
-
-		//add to result for return
-		transAll.Transactions = append(transAll.Transactions, transOne)
 	}
 
 	//compute total Amount for balance
 	var result adaptor.GetBalanceResult
-	var allAmount int64
-	for _, resultOne := range transAll.Transactions {
-		allAmount += resultOne.BlanceChanged
+	var allAmount float64
+	for _, value := range outputIndex {
+		allAmount += value
 	}
 
-	//remove e+8
-	bigFloat := new(big.Float)
-	bigFloat.SetInt64(allAmount)
-	bigFloat.Mul(bigFloat, big.NewFloat(1e-8))
-	result.Value, _ = bigFloat.Float64()
+	//
+	result.Value = allAmount
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
 		return "", err
@@ -349,25 +277,19 @@ func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams
 }
 
 func getAddrValue(client *rpcclient.Client, chainParams *chaincfg.Params,
-	txHash *chainhash.Hash, index int) (addr string, value int64) {
+	txHash *chainhash.Hash, index int) (addr string, value float64) {
 	//get raw transaction by txHash
-	tx, err := client.GetRawTransaction(txHash)
+	tx, err := client.GetRawTransactionVerbose(txHash)
 	if err != nil {
-		log.Fatal(err)
 		return "", 0
 	}
 
 	//get addr and value by index
-	msgTx := tx.MsgTx()
-	if index < len(msgTx.TxOut) {
-		_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-			msgTx.TxOut[index].PkScript, chainParams)
-		if err != nil {
-			log.Fatal(err)
-			return "", 0
-		} else {
-			//fmt.Println(addrs)
-			return addrs[0].String(), msgTx.TxOut[index].Value
+	if index < len(tx.Vout) {
+		for _, out := range tx.Vout {
+			if int(out.N) == index {
+				return out.ScriptPubKey.Addresses[0], out.Value
+			}
 		}
 	}
 	//return empty if error
@@ -406,7 +328,7 @@ func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcPa
 
 	//get all raw transaction
 	var strs []string
-	msgTxs, err := client.SearchRawTransactions(addr, 0, getTransactionsParams.Count, true, strs)
+	msgTxs, err := client.SearchRawTransactionsVerbose(addr, 0, getTransactionsParams.Count, true, false, strs)
 	if err != nil {
 		return "", err
 	}
@@ -419,63 +341,50 @@ func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcPa
 	for index, msgTx := range msgTxs {
 		//one transaction result
 		var transOne adaptor.Transaction
-		transOne.TxHash = msgTx.TxHash().String()
-
-		//		jsonTX, _ := json.Marshal(msgTx)
-		//		fmt.Println(string(jsonTX))
+		transOne.TxHash = msgTx.Txid
+		transOne.Confirms = msgTx.Confirmations
 
 		//transaction inputs
 		isSpend := false
-		for _, in := range msgTx.TxIn {
+		for _, in := range msgTx.Vin {
 			//check is spend or not
-			index, exist := msgIndex[in.PreviousOutPoint.Hash.String()+
-				strconv.Itoa(int(in.PreviousOutPoint.Index))]
+			index, exist := msgIndex[in.Txid+strconv.Itoa(int(in.Vout))]
 			if exist { //spend
 				isSpend = true
 				transOne.Inputs = append(transOne.Inputs,
-					adaptor.InputIndex{in.PreviousOutPoint.Hash.String(),
-						in.PreviousOutPoint.Index,
-						transAll.Transactions[index].Outputs[in.PreviousOutPoint.Index].Addr,
-						transAll.Transactions[index].Outputs[in.PreviousOutPoint.Index].Value})
+					adaptor.InputIndex{in.Txid, in.Vout,
+						transAll.Transactions[index].Outputs[in.Vout].Addr,
+						transAll.Transactions[index].Outputs[in.Vout].Value})
 			} else { //recv
 				//to get addr and value
-				addr, value := getAddrValue(client, realNet,
-					&in.PreviousOutPoint.Hash,
-					int(in.PreviousOutPoint.Index))
+				txhash, _ := chainhash.NewHashFromStr(in.Txid)
+				addr, value := getAddrValue(client, realNet, txhash, int(in.Vout))
 				if 0 == value {
 					continue
 				}
 				transOne.Inputs = append(transOne.Inputs,
-					adaptor.InputIndex{in.PreviousOutPoint.Hash.String(),
-						in.PreviousOutPoint.Index,
-						addr, value})
+					adaptor.InputIndex{in.Txid, in.Vout, addr, value})
 			}
 		}
 
 		//transaction outputs
-		for outIndex, out := range msgTx.TxOut {
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.PkScript,
-				&chaincfg.TestNet3Params)
-			if err != nil {
-				continue
-			} else {
-				transOne.Outputs = append(transOne.Outputs,
-					adaptor.OutputIndex{uint32(outIndex), addrs[0].String(), out.Value})
-				if addrs[0].String() == getTransactionsParams.Account {
-					msgIndex[msgTx.TxHash().String()+strconv.Itoa(outIndex)] = index
-				}
+		for outIndex, out := range msgTx.Vout {
+			transOne.Outputs = append(transOne.Outputs,
+				adaptor.OutputIndex{uint32(outIndex), out.ScriptPubKey.Addresses[0], out.Value})
+			if out.ScriptPubKey.Addresses[0] == getTransactionsParams.Account {
+				msgIndex[msgTx.Txid+strconv.Itoa(int(out.N))] = index
 			}
 		}
 
 		//calculate blancechanged
 		if isSpend {
-			totalInput := int64(0)
+			totalInput := float64(0)
 			for _, in := range transOne.Inputs {
 				if getTransactionsParams.Account == in.Addr {
 					totalInput += in.Value
 				}
 			}
-			totalOutput := int64(0)
+			totalOutput := float64(0)
 			for _, out := range transOne.Outputs {
 				if getTransactionsParams.Account == out.Addr {
 					totalOutput += out.Value
@@ -484,7 +393,7 @@ func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcPa
 			//spend return detract from total input
 			transOne.BlanceChanged = totalOutput - totalInput
 		} else {
-			totalRecv := int64(0)
+			totalRecv := float64(0)
 			for _, out := range transOne.Outputs {
 				if getTransactionsParams.Account == out.Addr {
 					totalRecv += out.Value
