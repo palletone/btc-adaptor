@@ -83,3 +83,7 @@ func (abtc AdaptorBTC) GetTransactions(params *adaptor.GetTransactionsParams) (s
 func (abtc AdaptorBTC) SendTransaction(params string) string {
 	return SendTransaction(params, &abtc.RPCParams)
 }
+
+func (abtc AdaptorBTC) MergeTransaction(params *adaptor.MergeTransactionParams) (string, error) {
+	return MergeTransaction(params, abtc.NetID)
+}
