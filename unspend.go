@@ -84,6 +84,17 @@ func GetClient(rpcParams *RPCParams) (*rpcclient.Client, error) {
 	return client, nil
 }
 
+func GetNet(netID int) *chaincfg.Params {
+	//chainnet
+	var realNet *chaincfg.Params
+	if netID == NETID_MAIN {
+		realNet = &chaincfg.MainNetParams
+	} else {
+		realNet = &chaincfg.TestNet3Params
+	}
+	return realNet
+}
+
 type GetUTXOParams struct {
 	Address      string `json:"address"`
 	Minconf      int    `json:"minconf"`
@@ -109,12 +120,7 @@ func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 	}
 
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	//convert address from string
 	address := strings.TrimSpace(getUTXOParams.Address) //Trim whitespace
@@ -195,12 +201,7 @@ func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 
 func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams, netID int) (string, error) {
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	//convert address from string
 	var addrs []btcutil.Address
@@ -306,12 +307,7 @@ func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcPa
 	//	}
 
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	//convert address from string
 	addr, err := btcutil.DecodeAddress(getTransactionsParams.Account, realNet)

@@ -59,16 +59,16 @@ func (abtc AdaptorBTC) GetUTXO(params string) string {
 }
 
 func (abtc AdaptorBTC) RawTransactionGen(params *adaptor.RawTransactionGenParams) (string, error) {
-	return RawTransactionGen(params, &abtc.RPCParams, abtc.NetID)
+	return RawTransactionGen(params, abtc.NetID)
 }
 func (abtc AdaptorBTC) DecodeRawTransaction(params *adaptor.DecodeRawTransactionParams) (string, error) {
-	return DecodeRawTransaction(params, &abtc.RPCParams)
+	return DecodeRawTransaction(params, abtc.NetID)
 }
 func (abtc AdaptorBTC) GetTransactionByHash(params *adaptor.GetTransactionByHashParams) (string, error) {
 	return GetTransactionByHash(params, &abtc.RPCParams)
 }
 func (abtc AdaptorBTC) SignTransaction(params *adaptor.SignTransactionParams) (string, error) {
-	return SignTransaction(params, &abtc.RPCParams, abtc.NetID)
+	return SignTransaction(params, abtc.NetID)
 }
 func (abtc AdaptorBTC) SignTxSend(params *adaptor.SignTxSendParams) (string, error) {
 	return SignTxSend(params, &abtc.RPCParams, abtc.NetID)

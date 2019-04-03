@@ -23,42 +23,33 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 
 	"github.com/palletone/adaptor"
 )
 
-func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams, rpcParams *RPCParams, netID int) (string, error) {
-	//	//convert params from json format
-	//	var rawTransactionGenParams RawTransactionGenParams
-	//	err := json.Unmarshal([]byte(params), &rawTransactionGenParams)
-	//	if err != nil {
-	//		return "", err
-	//	}
-
+func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams, netID int) (string, error) {
+	msgTx := wire.NewMsgTx(1)
 	//transaction inputs
-	var inputs []btcjson.TransactionInput
 	for _, inputOne := range rawTransactionGenParams.Inputs {
-		input := btcjson.TransactionInput{inputOne.Txid, inputOne.Vout}
-		inputs = append(inputs, input)
+		hash, err := chainhash.NewHashFromStr(inputOne.Txid)
+		if err != nil {
+			continue
+		}
+		input := &wire.TxIn{PreviousOutPoint: wire.OutPoint{*hash, inputOne.Vout}}
+		msgTx.AddTxIn(input)
 	}
-	if len(inputs) == 0 {
+	if len(msgTx.TxIn) == 0 {
 		return "", errors.New("Params error : NO Input.")
 	}
 
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	//transaction outputs
-	amounts := map[btcutil.Address]btcutil.Amount{}
 	for _, outOne := range rawTransactionGenParams.Outputs {
 		if len(outOne.Address) == 0 || outOne.Amount <= 0 {
 			continue
@@ -67,24 +58,14 @@ func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams,
 		if err != nil {
 			return "", err
 		}
-		amounts[addr] = btcutil.Amount(outOne.Amount * 1e8)
+		pkScript, _ := txscript.PayToAddrScript(addr)
+		txOut := wire.NewTxOut(int64(outOne.Amount*1e8), pkScript)
+		msgTx.AddTxOut(txOut)
 	}
-	if len(amounts) == 0 {
+	if len(msgTx.TxOut) == 0 {
 		return "", errors.New("Params error : NO Output.")
 	}
 
-	//get rpc client
-	client, err := GetClient(rpcParams)
-	if err != nil {
-		return "", err
-	}
-	defer client.Shutdown()
-
-	//only inputs and outputs, no redeem
-	msgTx, err := client.CreateRawTransaction(inputs, amounts, &rawTransactionGenParams.Locktime)
-	if err != nil {
-		return "", err
-	}
 	//SerializeSize transaction to bytes
 	buf := bytes.NewBuffer(make([]byte, 0, msgTx.SerializeSize()))
 	if err := msgTx.Serialize(buf); err != nil {
@@ -102,13 +83,7 @@ func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams,
 	return string(jsonResult), nil
 }
 
-func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransactionParams, rpcParams *RPCParams) (string, error) {
-	//	//convert params from json format
-	//	var decodeRawTransactionParams DecodeRawTransactionParams
-	//	err := json.Unmarshal([]byte(params), &decodeRawTransactionParams)
-	//	if err != nil {
-	//		return "", err
-	//	}
+func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransactionParams, netID int) (string, error) {
 	if "" == decodeRawTransactionParams.Rawtx {
 		return "", errors.New("Params error : NO Rawtx.")
 	}
@@ -119,27 +94,24 @@ func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransacti
 		return "", err
 	}
 
-	//get rpc client
-	client, err := GetClient(rpcParams)
+	var mtx wire.MsgTx
+	err = mtx.Deserialize(bytes.NewReader(rawTXBytes))
 	if err != nil {
 		return "", err
 	}
-	defer client.Shutdown()
 
-	//rpc DecodeRawTransaction
-	resultTxRaw, err := client.DecodeRawTransaction(rawTXBytes)
-	if err != nil {
-		return "", err
-	}
+	realNet := GetNet(netID)
 
 	//result for return
 	var result adaptor.DecodeRawTransactionResult
-	result.Locktime = resultTxRaw.LockTime
-	for i, _ := range resultTxRaw.Vin {
-		result.Inputs = append(result.Inputs, adaptor.Input{resultTxRaw.Vin[i].Txid, resultTxRaw.Vin[i].Vout})
+	result.Locktime = mtx.LockTime
+	for i, _ := range mtx.TxIn {
+		result.Inputs = append(result.Inputs, adaptor.Input{mtx.TxIn[i].PreviousOutPoint.Hash.String(), mtx.TxIn[i].PreviousOutPoint.Index})
 	}
-	for i, _ := range resultTxRaw.Vout {
-		result.Outputs = append(result.Outputs, adaptor.Output{resultTxRaw.Vout[i].ScriptPubKey.Addresses[0], resultTxRaw.Vout[i].Value})
+	for i, _ := range mtx.TxOut {
+		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(mtx.TxOut[i].PkScript, realNet)
+
+		result.Outputs = append(result.Outputs, adaptor.Output{addrs[0].EncodeAddress(), btcutil.Amount(mtx.TxOut[i].Value).ToBTC()})
 	}
 
 	jsonResult, err := json.Marshal(result)

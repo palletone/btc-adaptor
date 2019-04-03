@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcutil"
 
@@ -41,12 +40,7 @@ func NewPrivateKey(netID int) (wifPriKey string) {
 	}
 
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	//wif wallet import format
 	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), randBytes)
@@ -65,12 +59,7 @@ func GetPublicKey(wifPriKey string, netID int) (pubKey string) {
 	}
 
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	addressPubKey, err := btcutil.NewAddressPubKey(wif.SerializePubKey(),
 		realNet)
@@ -85,12 +74,7 @@ func GetAddress(wifPriKey string, netID int) (address string) {
 	}
 
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	addressPubKey, err := btcutil.NewAddressPubKey(wif.SerializePubKey(),
 		realNet)
@@ -106,12 +90,7 @@ func GetAddressByPubkey(pubKeyHex string, netID int) (string, error) {
 	}
 
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	addressPubKey, err := btcutil.NewAddressPubKey(pubKeyBytes,
 		realNet)
@@ -135,12 +114,7 @@ func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, n
 	}
 
 	//chainnet
-	var realNet *chaincfg.Params
-	if netID == NETID_MAIN {
-		realNet = &chaincfg.MainNetParams
-	} else {
-		realNet = &chaincfg.TestNet3Params
-	}
+	realNet := GetNet(netID)
 
 	//convert PublicKeyString to AddressPubKey
 	pubkeys := make([]*btcutil.AddressPubKey, len(createMultiSigParams.PublicKeys))
