@@ -31,6 +31,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 
+	"encoding/base64"
 	"github.com/palletone/adaptor"
 )
 
@@ -687,6 +688,94 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 	mergeTransactionResult.Complete = complete
 
 	jsonResult, err := json.Marshal(mergeTransactionResult)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonResult), nil
+}
+
+func SignMessage(signMessageParams *adaptor.SignMessageParams) (string, error) {
+	wif, err := btcutil.DecodeWIF(signMessageParams.Privkey)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	wire.WriteVarString(&buf, 0, "Bitcoin Signed Message:\n")
+	wire.WriteVarString(&buf, 0, signMessageParams.Message)
+	messageHash := chainhash.DoubleHashB(buf.Bytes())
+	sigbytes, err := btcec.SignCompact(btcec.S256(), wif.PrivKey,
+		messageHash, true)
+	if err != nil {
+		return "", err
+	}
+
+	//result for return
+	var mergeTransactionResult adaptor.SignMessageResult
+	mergeTransactionResult.Signature = base64.StdEncoding.EncodeToString(sigbytes)
+
+	jsonResult, err := json.Marshal(mergeTransactionResult)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonResult), nil
+}
+
+func VerifyMessage(verifyMessageParams *adaptor.VerifyMessageParams, netID int) (string, error) {
+	realNet := GetNet(netID)
+
+	// Decode the provided address.
+	addr, err := btcutil.DecodeAddress(verifyMessageParams.Address, realNet)
+	if err != nil {
+		return "", errors.New("Invalid address or key: " + err.Error())
+	}
+
+	// Only P2PKH addresses are valid for signing.
+	if _, ok := addr.(*btcutil.AddressPubKeyHash); !ok {
+		return "", errors.New("Address is not a pay-to-pubkey-hash address")
+	}
+
+	// Decode base64 signature.
+	sig, err := base64.StdEncoding.DecodeString(verifyMessageParams.Signature)
+	if err != nil {
+		return "", errors.New("Malformed base64 encoding: " + err.Error())
+	}
+
+	// Validate the signature - this just shows that it was valid at all.
+	// we will compare it with the key next.
+	var buf bytes.Buffer
+	wire.WriteVarString(&buf, 0, "Bitcoin Signed Message:\n")
+	wire.WriteVarString(&buf, 0, verifyMessageParams.Message)
+	expectedMessageHash := chainhash.DoubleHashB(buf.Bytes())
+	pk, wasCompressed, err := btcec.RecoverCompact(btcec.S256(), sig,
+		expectedMessageHash)
+	if err != nil {
+		// Mirror Bitcoin Core behavior, which treats error in
+		// RecoverCompact as invalid signature.
+		return "", errors.New("RecoverCompact failed: " + err.Error())
+	}
+
+	// Reconstruct the pubkey hash.
+	var serializedPK []byte
+	if wasCompressed {
+		serializedPK = pk.SerializeCompressed()
+	} else {
+		serializedPK = pk.SerializeUncompressed()
+	}
+	address, err := btcutil.NewAddressPubKey(serializedPK, realNet)
+	if err != nil {
+		// Again mirror Bitcoin Core behavior, which treats error in public key
+		// reconstruction as invalid signature.
+		return "", errors.New("AddressPubKey failed: " + err.Error())
+	}
+
+	//result for return
+	var verifyMessageResult adaptor.VerifyMessageResult
+	verifyMessageResult.Valid = (address.EncodeAddress() == verifyMessageParams.Address) // Return boolean if addresses match.
+
+	jsonResult, err := json.Marshal(verifyMessageResult)
 	if err != nil {
 		return "", err
 	}

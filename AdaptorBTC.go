@@ -87,3 +87,11 @@ func (abtc AdaptorBTC) SendTransaction(params string) string {
 func (abtc AdaptorBTC) MergeTransaction(params *adaptor.MergeTransactionParams) (string, error) {
 	return MergeTransaction(params, abtc.NetID)
 }
+
+func (abtc AdaptorBTC) SignMessage(params *adaptor.SignMessageParams) (string, error) {
+	return SignMessage(params)
+}
+
+func (abtc AdaptorBTC) VerifyMessage(params *adaptor.VerifyMessageParams) (string, error) {
+	return VerifyMessage(params, abtc.NetID)
+}

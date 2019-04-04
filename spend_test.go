@@ -160,6 +160,40 @@ func TestMergeTransaction(t *testing.T) {
 	return
 }
 
+func TestSignMessage(t *testing.T) {
+	var signMessageParams adaptor.SignMessageParams
+	signMessageParams.Message = "Hello, World!"
+	signMessageParams.Privkey = "cUakDAWEeNeXTo3B93WBs9HRMfaFDegXcbEGooLz8BSxRBfmpYcX"
+	result, err := SignMessage(&signMessageParams)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(result) //H7GJvdYPHxjeJWkAj5negCzcoW2JjvcY93UF5wMqW0D5etuRkK0qDr7KflmcZrIkflSzb4I6X8ZqSZHEXYG3jSA=
+	}
+}
+func TestVerifyMessage(t *testing.T) {
+	var verifyMessageParams adaptor.VerifyMessageParams
+	verifyMessageParams.Message = "Hello, World!"
+	verifyMessageParams.Address = "mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt"
+	verifyMessageParams.Signature = "H7GJvdYPHxjeJWkAj5negCzcoW2JjvcY93UF5wMqW0D5etuRkK0qDr7KflmcZrIkflSzb4I6X8ZqSZHEXYG3jSA="
+	result, err := VerifyMessage(&verifyMessageParams, 1)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(result)
+	}
+
+	var verifyMessageParams2 adaptor.VerifyMessageParams
+	verifyMessageParams2.Message = "Hello, World!"
+	verifyMessageParams2.Address = "mgnucj8nYqdrPFh2JfZSB1NmUThUGnmsqe"
+	verifyMessageParams2.Signature = "IL98ziCmwYi5pL+dqKp4Ux+zCa4hP/xbjHmWh+Mk/lefV/0pWV1p/gQ94jgExSmgH2/+PDcCCrOHAady2IEySSI="
+	result2, err := VerifyMessage(&verifyMessageParams2, 1)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(result2)
+	}
+}
 func TestMultisignOneByOne(t *testing.T) {
 	sigTransaction, partSigedScript, complete := MultisignOneByOne("101d482b60cd3f74a61ce265d62e383456b9c21c84477931d207ea8f503d84cc", 0,
 		100000000, 100000, "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5",
