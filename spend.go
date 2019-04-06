@@ -386,6 +386,54 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 	return string(jsonResult), nil
 }
 
+type SendTransactionHttppResponse struct {
+	Network string `json:"network"`
+	Txid    string `json:"txid"`
+}
+
+func SendTransactionHttp(sendTransactionParams *adaptor.SendTransactionHttpParams, netID int) (string, error) {
+	//check empty string
+	if "" == sendTransactionParams.TransactionHex {
+		return "", errors.New("Params error : NO TransactionHex.")
+	}
+
+	var request string
+	if netID == NETID_MAIN {
+		request = base + "send_tx/BTC/"
+	} else {
+		request = base + "send_tx/BTCTEST/"
+	}
+
+	//
+	params := map[string]string{"tx_hex": sendTransactionParams.TransactionHex}
+	paramsJson, err := json.Marshal(params)
+	if err != nil {
+		return "", err
+	}
+
+	strRespose, err, _ := httpPost(request, string(paramsJson))
+	if err != nil {
+		return "", err
+	}
+
+	var txResult SendTransactionHttppResponse
+	err = json.Unmarshal([]byte(strRespose), &txResult)
+	if err != nil {
+		return "", err
+	}
+
+	//result for return
+	var sendTransactionResult adaptor.SendTransactionHttpResult
+	sendTransactionResult.TransactionHah = txResult.Txid
+
+	jsonResult, err := json.Marshal(sendTransactionResult)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonResult), nil
+}
+
 func SendTransaction(params string, rpcParams *RPCParams) string {
 	//convert params from json format
 	var sendTransactionParams adaptor.SendTransactionParams

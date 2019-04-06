@@ -23,6 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 
+	"io/ioutil"
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -154,6 +159,117 @@ func GetTransactionByHash(getTransactionByHashParams *adaptor.GetTransactionByHa
 	}
 	getTransactionByHashResult.Txid = txResult.Txid
 	getTransactionByHashResult.Confirms = txResult.Confirmations
+
+	jsonResult, err := json.Marshal(getTransactionByHashResult)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonResult), nil
+}
+
+func httpGet(url string) (string, error, int) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err, 0
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err, 0
+	}
+
+	return string(body), nil, resp.StatusCode
+}
+
+func httpPost(url string, params string) (string, error, int) {
+	resp, err := http.Post(url, "application/json", strings.NewReader(params))
+	if err != nil {
+		return "", err, 0
+	}
+	defer resp.Body.Close()
+
+	//fmt.Println(resp.StatusCode)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err, 0
+	}
+
+	return string(body), nil, resp.StatusCode
+}
+
+const base = "https://chain.so/api/v2/"
+
+type GetTransactionHttpResponse struct {
+	//Status string `json:"status"`
+	Data struct {
+		//Network       string `json:"network"`
+		Txid string `json:"txid"`
+		//Blockhash     string `json:"blockhash"`
+		Confirmations int `json:"confirmations"`
+		//Time          int    `json:"time"`
+		Inputs []struct {
+			//InputNo    int         `json:"input_no"`
+			Value   string `json:"value"`
+			Address string `json:"address"`
+			//Type       string      `json:"type"`
+			//Script     string      `json:"script"`
+			//Witness    interface{} `json:"witness"`
+			FromOutput struct {
+				Txid     string `json:"txid"`
+				OutputNo int    `json:"output_no"`
+			} `json:"from_output"`
+		} `json:"inputs"`
+		Outputs []struct {
+			OutputNo int    `json:"output_no"`
+			Value    string `json:"value"`
+			Address  string `json:"address"`
+			//Type     string `json:"type"`
+			//Script   string `json:"script"`
+		} `json:"outputs"`
+		//TxHex    string `json:"tx_hex"`
+		//Size     int    `json:"size"`
+		//Version  int    `json:"version"`
+		Locktime int `json:"locktime"`
+	} `json:"data"`
+}
+
+func GetTransactionHttp(getTransactionByHashParams *adaptor.GetTransactionHttpParams, netID int) (string, error) {
+	if "" == getTransactionByHashParams.TxHash {
+		return "", errors.New("TxHash is empty")
+	}
+	var request string
+	if netID == NETID_MAIN {
+		request = base + "get_tx/BTC/"
+	} else {
+		request = base + "get_tx/BTCTEST/"
+	}
+	//
+	strRespose, err, _ := httpGet(request + getTransactionByHashParams.TxHash)
+	if err != nil {
+		return "", err
+	}
+
+	var txResult GetTransactionHttpResponse
+	err = json.Unmarshal([]byte(strRespose), &txResult)
+	if err != nil {
+		return "", err
+	}
+
+	//result for return
+	var getTransactionByHashResult adaptor.GetTransactionHttpResult
+	for _, out := range txResult.Data.Outputs {
+		value, _ := strconv.ParseFloat(out.Value, 64)
+		getTransactionByHashResult.Outputs = append(getTransactionByHashResult.Outputs,
+			adaptor.OutputIndex{uint32(out.OutputNo), out.Address, value})
+	}
+	for _, in := range txResult.Data.Inputs {
+		getTransactionByHashResult.Inputs = append(getTransactionByHashResult.Inputs,
+			adaptor.Input{in.FromOutput.Txid, uint32(in.FromOutput.OutputNo)})
+	}
+	getTransactionByHashResult.Txid = txResult.Data.Txid
+	getTransactionByHashResult.Confirms = uint64(txResult.Data.Confirmations)
 
 	jsonResult, err := json.Marshal(getTransactionByHashResult)
 	if err != nil {

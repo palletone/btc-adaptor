@@ -31,6 +31,17 @@ func TestGetUTXO(t *testing.T) {
 	fmt.Println(result)
 }
 
+func TestGetUTXOHttp(t *testing.T) {
+	parms := &adaptor.GetUTXOHttpParams{Address: "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"}
+
+	result, err := GetUTXOHttp(parms, NETID_TEST)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(result)
+	}
+}
+
 func TestGetBalance(t *testing.T) {
 	//	parms := `{"address": "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA","minconf": 1}`
 

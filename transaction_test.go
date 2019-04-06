@@ -112,3 +112,18 @@ func TestGetTransactionByHash(t *testing.T) {
 	}
 
 }
+
+func TestGetTransactionHttp(t *testing.T) {
+	var getTransactionParams adaptor.GetTransactionHttpParams
+	getTransactionParams.TxHash = "39176cc119da6a491472ef598335305839b9ccb6b7d8cd635c863456f8b09917"
+
+	//{"txid":"39176cc119da6a491472ef598335305839b9ccb6b7d8cd635c863456f8b09917","confirms":75542,"inputs":[{"txid":"6c4d7711f71dc5d075d9e10583351bb7ee530b44c8fd581cb97da91ea31d88cf","vout":0}],"outputs":[{"index":0,"addr":"2NGDzMbWC7Q1tv3bHc9B8FytBbKEwXJSgkg","value":0.60085864}]}
+
+	result, err := GetTransactionHttp(&getTransactionParams, NETID_TEST)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(result)
+	}
+
+}

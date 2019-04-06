@@ -57,6 +57,9 @@ func (abtc AdaptorBTC) CreateMultiSigAddress(params *adaptor.CreateMultiSigParam
 func (abtc AdaptorBTC) GetUTXO(params string) string {
 	return GetUTXO(params, &abtc.RPCParams, abtc.NetID)
 }
+func (abtc AdaptorBTC) GetUTXOHttp(params *adaptor.GetUTXOHttpParams) (string, error) {
+	return GetUTXOHttp(params, abtc.NetID)
+}
 
 func (abtc AdaptorBTC) RawTransactionGen(params *adaptor.RawTransactionGenParams) (string, error) {
 	return RawTransactionGen(params, abtc.NetID)
@@ -67,6 +70,10 @@ func (abtc AdaptorBTC) DecodeRawTransaction(params *adaptor.DecodeRawTransaction
 func (abtc AdaptorBTC) GetTransactionByHash(params *adaptor.GetTransactionByHashParams) (string, error) {
 	return GetTransactionByHash(params, &abtc.RPCParams)
 }
+func (abtc AdaptorBTC) GetTransactionHttp(params *adaptor.GetTransactionHttpParams) (string, error) {
+	return GetTransactionHttp(params, abtc.NetID)
+}
+
 func (abtc AdaptorBTC) SignTransaction(params *adaptor.SignTransactionParams) (string, error) {
 	return SignTransaction(params, abtc.NetID)
 }
@@ -82,6 +89,9 @@ func (abtc AdaptorBTC) GetTransactions(params *adaptor.GetTransactionsParams) (s
 
 func (abtc AdaptorBTC) SendTransaction(params string) string {
 	return SendTransaction(params, &abtc.RPCParams)
+}
+func (abtc AdaptorBTC) SendTransactionHttp(params *adaptor.SendTransactionHttpParams) (string, error) {
+	return SendTransactionHttp(params, abtc.NetID)
 }
 
 func (abtc AdaptorBTC) MergeTransaction(params *adaptor.MergeTransactionParams) (string, error) {

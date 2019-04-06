@@ -95,25 +95,9 @@ func GetNet(netID int) *chaincfg.Params {
 	return realNet
 }
 
-type GetUTXOParams struct {
-	Address      string `json:"address"`
-	Minconf      int    `json:"minconf"`
-	Maxconf      int    `json:"maxconf"`
-	MaximumCount int    `json:"maximumCount"`
-}
-
-type UTXO struct {
-	TxID   string  `json:"txid"`
-	Vout   uint32  `json:"vout"`
-	Amount float64 `json:"amount"`
-}
-type GetUTXOResult struct {
-	UTXOs []UTXO `json:"utxos"`
-}
-
 func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 	//convert params from json format
-	var getUTXOParams GetUTXOParams
+	var getUTXOParams adaptor.GetUTXOParams
 	err := json.Unmarshal([]byte(params), &getUTXOParams)
 	if err != nil {
 		return err.Error()
@@ -161,11 +145,9 @@ func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 		//transaction inputs
 		for _, in := range msgTx.Vin {
 			//check is spend or not
-			_, exist := outputIndex[in.Txid+sep+
-				strconv.Itoa(int(in.Vout))]
+			_, exist := outputIndex[in.Txid+sep+strconv.Itoa(int(in.Vout))]
 			if exist { //spend
-				delete(outputIndex, in.Txid+sep+
-					strconv.Itoa(int(in.Vout)))
+				delete(outputIndex, in.Txid+sep+strconv.Itoa(int(in.Vout)))
 			}
 		}
 
@@ -178,12 +160,12 @@ func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 	}
 
 	//
-	var result GetUTXOResult
+	var result adaptor.GetUTXOResult
 	for oneOut, value := range outputIndex {
 		keys := strings.Split(oneOut, sep)
 		if len(keys) == 2 {
 			vout, _ := strconv.Atoi(keys[1])
-			oneUTXO := UTXO{keys[0], uint32(vout), value}
+			oneUTXO := adaptor.UTXO{keys[0], uint32(vout), value, 0}
 			result.UTXOs = append(result.UTXOs, oneUTXO)
 		} else {
 			return "Process fatal error : key invalid."
@@ -197,6 +179,62 @@ func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 	}
 
 	return string(jsonResult)
+}
+
+type GetUTXOHttpResponse struct {
+	//Status string `json:"status"`
+	Data struct {
+		//Network string `json:"network"`
+		//Address string `json:"address"`
+		Txs []struct {
+			Txid     string `json:"txid"`
+			OutputNo int    `json:"output_no"`
+			//ScriptAsm     string `json:"script_asm"`
+			//ScriptHex     string `json:"script_hex"`
+			Value         string `json:"value"`
+			Confirmations int    `json:"confirmations"`
+			//Time          int    `json:"time"`
+		} `json:"txs"`
+	} `json:"data"`
+}
+
+//only return 100 default, need use params after_txid
+func GetUTXOHttp(params *adaptor.GetUTXOHttpParams, netID int) (string, error) {
+	if "" == params.Address {
+		return "", errors.New("Address is empty")
+	}
+	var request string //todo: use after_txid
+	if netID == NETID_MAIN {
+		request = base + "get_tx_unspent/BTC/"
+	} else {
+		request = base + "get_tx_unspent/BTCTEST/"
+	}
+
+	strRespose, err, _ := httpGet(request + params.Address)
+	if err != nil {
+		return "", err
+	}
+
+	var msgTxs GetUTXOHttpResponse
+	err = json.Unmarshal([]byte(strRespose), &msgTxs)
+	if err != nil {
+		return "", err
+	}
+
+	//
+	var result adaptor.GetUTXOResult
+	for _, tx := range msgTxs.Data.Txs {
+		value, _ := strconv.ParseFloat(tx.Value, 64)
+		oneUTXO := adaptor.UTXO{tx.Txid, uint32(tx.OutputNo), value, uint64(tx.Confirmations)}
+		result.UTXOs = append(result.UTXOs, oneUTXO)
+	}
+
+	jsonResult, err := json.Marshal(result)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonResult), nil
 }
 
 func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams, netID int) (string, error) {
