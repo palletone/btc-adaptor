@@ -25,8 +25,10 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/txscript"
+	//"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcutil"
+
+	"github.com/palletone/btc-adaptor/txscript"
 
 	"github.com/palletone/adaptor"
 )
