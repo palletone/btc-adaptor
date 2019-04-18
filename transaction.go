@@ -113,7 +113,8 @@ func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransacti
 	var result adaptor.DecodeRawTransactionResult
 	result.Locktime = mtx.LockTime
 	for i, _ := range mtx.TxIn {
-		result.Inputs = append(result.Inputs, adaptor.Input{mtx.TxIn[i].PreviousOutPoint.Hash.String(), mtx.TxIn[i].PreviousOutPoint.Index})
+		result.Inputs = append(result.Inputs, adaptor.Input{Txid: mtx.TxIn[i].PreviousOutPoint.Hash.String(),
+			Vout: mtx.TxIn[i].PreviousOutPoint.Index}) //todo Addr
 	}
 	for i, _ := range mtx.TxOut {
 		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(mtx.TxOut[i].PkScript, realNet)
@@ -157,7 +158,7 @@ func GetTransactionByHash(getTransactionByHashParams *adaptor.GetTransactionByHa
 	}
 	for _, in := range txResult.Vin {
 		getTransactionByHashResult.Inputs = append(getTransactionByHashResult.Inputs,
-			adaptor.Input{in.Txid, in.Vout})
+			adaptor.Input{Txid: in.Txid, Vout: in.Vout}) //todo Addr
 	}
 	getTransactionByHashResult.Txid = txResult.Txid
 	getTransactionByHashResult.Confirms = txResult.Confirmations
@@ -268,7 +269,7 @@ func GetTransactionHttp(getTransactionByHashParams *adaptor.GetTransactionHttpPa
 	}
 	for _, in := range txResult.Data.Inputs {
 		getTransactionByHashResult.Inputs = append(getTransactionByHashResult.Inputs,
-			adaptor.Input{in.FromOutput.Txid, uint32(in.FromOutput.OutputNo)})
+			adaptor.Input{in.FromOutput.Txid, uint32(in.FromOutput.OutputNo), in.Address})
 	}
 	getTransactionByHashResult.Txid = txResult.Data.Txid
 	getTransactionByHashResult.Confirms = uint64(txResult.Data.Confirmations)
