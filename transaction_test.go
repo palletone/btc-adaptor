@@ -39,8 +39,8 @@ func TestRawTransactionGen(t *testing.T) {
 	amount := 2.28821516
 	//
 	var rawTransactionGenParams adaptor.RawTransactionGenParams
-	rawTransactionGenParams.Inputs = append(rawTransactionGenParams.Inputs, adaptor.Input{txid1, uint32(vout1)})
-	rawTransactionGenParams.Inputs = append(rawTransactionGenParams.Inputs, adaptor.Input{txid2, uint32(vout2)})
+	rawTransactionGenParams.Inputs = append(rawTransactionGenParams.Inputs, adaptor.Input{txid1, uint32(vout1),address})
+	rawTransactionGenParams.Inputs = append(rawTransactionGenParams.Inputs, adaptor.Input{txid2, uint32(vout2),address})
 	rawTransactionGenParams.Outputs = append(rawTransactionGenParams.Outputs, adaptor.Output{address, amount})
 
 	testResult := "0100000002897b0b90db2e7eebdd82bfd18a01bdf18a9c8cc7c10df8e19ff131c04fa69616000000000000000000ea60d9d11cc3e40e17f068ca1191ff5d3ec11d016393addf63305001ce813c99000000000000000000010c8aa30d000000001976a9140f08e55bcfc207632d2dcfc3d4db4b6d8d91b22e88ac00000000"
