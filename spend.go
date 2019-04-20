@@ -55,8 +55,21 @@ func decodeHexStr(hexStr string) ([]byte, error) {
 	return decoded, nil
 }
 
+type RawTxInput struct {
+	Txid         string `json:"txid"`
+	Vout         uint32 `json:"vout"`
+	ScriptPubKey string `json:"scriptPubKey"`
+}
+type SignRawTransactionCmd struct {
+	RawTx     string
+	Inputs    *[]RawTxInput
+	RedeemHex []string
+	PrivKeys  *[]string
+	Flags     *string `jsonrpcdefault:"\"ALL\""`
+}
+
 // signRawTransaction handles the signrawtransaction command.
-func signRawTransactionCmd(cmd *btcjson.SignRawTransactionCmd, chainParams *chaincfg.Params) (interface{}, error) {
+func signRawTransactionCmd(cmd *SignRawTransactionCmd, chainParams *chaincfg.Params) (interface{}, error) {
 	serializedTx, err := decodeHexStr(cmd.RawTx)
 	if err != nil {
 		return nil, err
@@ -89,7 +102,7 @@ func signRawTransactionCmd(cmd *btcjson.SignRawTransactionCmd, chainParams *chai
 	// make sure that they match the blockchain if present.
 	inputs := make(map[wire.OutPoint][]byte)
 	scripts := make(map[string][]byte)
-	var cmdInputs []btcjson.RawTxInput
+	var cmdInputs []RawTxInput
 	if cmd.Inputs != nil {
 		cmdInputs = *cmd.Inputs
 	}
@@ -108,21 +121,23 @@ func signRawTransactionCmd(cmd *btcjson.SignRawTransactionCmd, chainParams *chai
 		}
 		inputs[wire.OutPoint{Hash: *inputHash, Index: inputOne.Vout}] = script
 
-		//
-		if "" != inputOne.RedeemScript {
-			redeemScript, err := decodeHexStr(inputOne.RedeemScript)
-			if err != nil {
-				return nil, err
-			}
-
-			addr, err := btcutil.NewAddressScriptHash(redeemScript,
-				chainParams)
-			if err != nil {
-				return nil, err
-			}
-			scripts[addr.String()] = redeemScript
+	}
+	//
+	for i := range cmd.RedeemHex {
+		if "" == cmd.RedeemHex[i] {
+			continue
+		}
+		redeemScript, err := decodeHexStr(cmd.RedeemHex[i])
+		if err != nil {
+			return nil, err
 		}
 
+		addr, err := btcutil.NewAddressScriptHash(redeemScript,
+			chainParams)
+		if err != nil {
+			return nil, err
+		}
+		scripts[addr.String()] = redeemScript
 	}
 
 	// Parse list of private keys, if present. If there are any keys here
@@ -301,7 +316,7 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 
 	var err error
 	//sign the UTXO hash, must know RedeemHex which contains in RawTxInput
-	var rawInputs []btcjson.RawTxInput
+	var rawInputs []RawTxInput
 	for {
 		//decode Transaction hexString to bytes
 		rawTXBytes, err := hex.DecodeString(signTransactionParams.TransactionHex)
@@ -316,23 +331,7 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 		}
 
 		payScript := ""
-		if "" != signTransactionParams.RedeemHex {
-			//decode redeem's hexString to bytes
-			redeem, err := hex.DecodeString(signTransactionParams.RedeemHex)
-			if err != nil {
-				break
-			}
-			//get multisig payScript
-			scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
-			if err != nil {
-				break
-			}
-			scriptPkScript, err := txscript.PayToAddrScript(scriptAddr)
-			if err != nil {
-				break
-			}
-			payScript = hex.EncodeToString(scriptPkScript)
-		} else {
+		if "" != signTransactionParams.FromAddr {
 			address, err := btcutil.DecodeAddress(signTransactionParams.FromAddr, realNet)
 			if err != nil {
 				break
@@ -343,14 +342,38 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 				break
 			}
 			payScript = hex.EncodeToString(script)
-		}
+		} //todo redeem
 		//multisig transaction need redeem for sign
-		for _, txinOne := range tx.TxIn {
-			rawInput := btcjson.RawTxInput{
+		for i, txinOne := range tx.TxIn {
+			if "" == signTransactionParams.FromAddr {
+				if i >= len(signTransactionParams.InputRedeemIndex) {
+					err = errors.New("RedeemIndex not enough")
+					break
+				}
+				//decode redeem's hexString to bytes
+				if signTransactionParams.InputRedeemIndex[i] >= len(signTransactionParams.RedeemHex) {
+					err = errors.New("RedeemIndex invalid")
+					break
+				}
+				redeem, err := hex.DecodeString(signTransactionParams.RedeemHex[signTransactionParams.InputRedeemIndex[i]])
+				if err != nil {
+					break
+				}
+				//get multisig payScript
+				scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
+				if err != nil {
+					break
+				}
+				scriptPkScript, err := txscript.PayToAddrScript(scriptAddr)
+				if err != nil {
+					break
+				}
+				payScript = hex.EncodeToString(scriptPkScript)
+			}
+			rawInput := RawTxInput{
 				txinOne.PreviousOutPoint.Hash.String(), //txid
 				txinOne.PreviousOutPoint.Index,         //outindex
-				payScript,                              //multisig pay script
-				signTransactionParams.RedeemHex}        //redeem
+				payScript}                              //multisig pay script
 			rawInputs = append(rawInputs, rawInput)
 		}
 
@@ -361,9 +384,10 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 	}
 
 	//
-	var cmd btcjson.SignRawTransactionCmd
+	var cmd SignRawTransactionCmd
 	cmd.RawTx = signTransactionParams.TransactionHex
 	cmd.Inputs = &rawInputs
+	cmd.RedeemHex = append(cmd.RedeemHex, signTransactionParams.RedeemHex...)
 	cmd.PrivKeys = &signTransactionParams.Privkeys
 	flags := "ALL"
 	cmd.Flags = &flags
@@ -497,7 +521,7 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 
 	var err error
 	//sign the UTXO hash, must know RedeemHex which contains in RawTxInput
-	var rawInputs []btcjson.RawTxInput
+	var rawInputs []RawTxInput
 	for {
 		//decode Transaction hexString to bytes
 		rawTXBytes, err := hex.DecodeString(signTxSendParams.TransactionHex)
@@ -512,23 +536,7 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 		}
 
 		payScript := ""
-		if "" != signTxSendParams.RedeemHex {
-			//decode redeem's hexString to bytes
-			redeem, err := hex.DecodeString(signTxSendParams.RedeemHex)
-			if err != nil {
-				break
-			}
-			//get multisig payScript
-			scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
-			if err != nil {
-				break
-			}
-			scriptPkScript, err := txscript.PayToAddrScript(scriptAddr)
-			if err != nil {
-				break
-			}
-			payScript = hex.EncodeToString(scriptPkScript)
-		} else {
+		if "" != signTxSendParams.FromAddr {
 			address, err := btcutil.DecodeAddress(signTxSendParams.FromAddr, realNet)
 			if err != nil {
 				break
@@ -539,14 +547,38 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 				break
 			}
 			payScript = hex.EncodeToString(script)
-		}
+		} //todo redeem
 		//multisig transaction need redeem for sign
-		for _, txinOne := range tx.TxIn {
-			rawInput := btcjson.RawTxInput{
+		for i, txinOne := range tx.TxIn {
+			if "" == signTxSendParams.FromAddr {
+				if i >= len(signTxSendParams.InputRedeemIndex) {
+					err = errors.New("RedeemIndex not enough")
+					break
+				}
+				//decode redeem's hexString to bytes
+				if signTxSendParams.InputRedeemIndex[i] >= len(signTxSendParams.RedeemHex) {
+					err = errors.New("RedeemIndex invalid")
+					break
+				}
+				redeem, err := hex.DecodeString(signTxSendParams.RedeemHex[signTxSendParams.InputRedeemIndex[i]])
+				if err != nil {
+					break
+				}
+				//get multisig payScript
+				scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
+				if err != nil {
+					break
+				}
+				scriptPkScript, err := txscript.PayToAddrScript(scriptAddr)
+				if err != nil {
+					break
+				}
+				payScript = hex.EncodeToString(scriptPkScript)
+			}
+			rawInput := RawTxInput{
 				txinOne.PreviousOutPoint.Hash.String(), //txid
 				txinOne.PreviousOutPoint.Index,         //outindex
-				payScript,                              //multisig pay script
-				signTxSendParams.RedeemHex}             //redeem
+				payScript}                              //multisig pay script
 			rawInputs = append(rawInputs, rawInput)
 		}
 
@@ -557,9 +589,10 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 	}
 
 	//
-	var cmd btcjson.SignRawTransactionCmd
+	var cmd SignRawTransactionCmd
 	cmd.RawTx = signTxSendParams.TransactionHex
 	cmd.Inputs = &rawInputs
+	cmd.RedeemHex = append(cmd.RedeemHex, signTxSendParams.RedeemHex...)
 	cmd.PrivKeys = &signTxSendParams.Privkeys
 	flags := "ALL"
 	cmd.Flags = &flags
@@ -635,7 +668,8 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 	var nrequired int
 	var scriptPkScript []byte
 	for {
-		if "" == mergeTransactionParams.RedeemHex {
+		if 0 == len(mergeTransactionParams.RedeemHex) {
+			err = errors.New("RedeemHex's length is 0")
 			break
 		}
 
@@ -650,28 +684,6 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 			break
 		}
 
-		//decode redeem's hexString to bytes
-		redeem, err = hex.DecodeString(mergeTransactionParams.RedeemHex)
-		if err != nil {
-			break
-		}
-
-		//get addresses an n of multisig redeem
-		_, addresses, nrequired, err = txscript.ExtractPkScriptAddrs(redeem,
-			realNet)
-		if err != nil {
-			break
-		}
-
-		//get multisig payScript
-		scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
-		if err != nil {
-			break
-		}
-		scriptPkScript, err = txscript.PayToAddrScript(scriptAddr)
-		if err != nil {
-			break
-		}
 		break
 	}
 	if err != nil {
@@ -701,6 +713,38 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 	//merge tx
 	complete := true
 	for i := range tx.TxIn {
+		if i >= len(mergeTransactionParams.InputRedeemIndex) {
+			err = errors.New("RedeemIndex not enough")
+			break
+		}
+		//decode redeem's hexString to bytes
+		if mergeTransactionParams.InputRedeemIndex[i] >= len(mergeTransactionParams.RedeemHex) {
+			err = errors.New("RedeemIndex invalid")
+			break
+		}
+		//decode redeem's hexString to bytes
+		redeem, err = hex.DecodeString(mergeTransactionParams.RedeemHex[mergeTransactionParams.InputRedeemIndex[i]])
+		if err != nil {
+			break
+		}
+
+		//get addresses an n of multisig redeem
+		_, addresses, nrequired, err = txscript.ExtractPkScriptAddrs(redeem,
+			realNet)
+		if err != nil {
+			break
+		}
+
+		//get multisig payScript
+		scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
+		if err != nil {
+			break
+		}
+		scriptPkScript, err = txscript.PayToAddrScript(scriptAddr)
+		if err != nil {
+			break
+		}
+
 		//
 		sigScripts := make([][]byte, 0)
 		for j := range txs {
