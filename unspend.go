@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -119,7 +118,6 @@ func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 	//get rpc client
 	client, err := GetClient(rpcParams)
 	if err != nil {
-		log.Fatal(err)
 		return err.Error()
 	}
 	defer client.Shutdown()
