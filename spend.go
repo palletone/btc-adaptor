@@ -319,8 +319,9 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 	var rawInputs []RawTxInput
 	for {
 		//decode Transaction hexString to bytes
-		rawTXBytes, err := hex.DecodeString(signTransactionParams.TransactionHex)
-		if err != nil {
+		rawTXBytes, err1 := hex.DecodeString(signTransactionParams.TransactionHex)
+		if err1 != nil {
+			err = err1
 			break
 		}
 		//deserialize to MsgTx
@@ -413,8 +414,11 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 }
 
 type SendTransactionHttppResponse struct {
-	Network string `json:"network"`
-	Txid    string `json:"txid"`
+	//Status string `json:"status"`
+	Data struct {
+		Network string `json:"network"`
+		Txid    string `json:"txid"`
+	} `json:"data"`
 }
 
 func SendTransactionHttp(sendTransactionParams *adaptor.SendTransactionHttpParams, netID int) (string, error) {
@@ -450,7 +454,7 @@ func SendTransactionHttp(sendTransactionParams *adaptor.SendTransactionHttpParam
 
 	//result for return
 	var sendTransactionResult adaptor.SendTransactionHttpResult
-	sendTransactionResult.TransactionHah = txResult.Txid
+	sendTransactionResult.TransactionHah = txResult.Data.Txid
 
 	jsonResult, err := json.Marshal(sendTransactionResult)
 	if err != nil {

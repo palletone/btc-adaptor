@@ -83,6 +83,9 @@ func (abtc AdaptorBTC) SignTxSend(params *adaptor.SignTxSendParams) (string, err
 func (abtc AdaptorBTC) GetBalance(params *adaptor.GetBalanceParams) (string, error) {
 	return GetBalance(params, &abtc.RPCParams, abtc.NetID)
 }
+func (abtc AdaptorBTC) GetBalanceHttp(params *adaptor.GetBalanceHttpParams) (string, error) {
+	return GetBalanceHttp(params, abtc.NetID)
+}
 func (abtc AdaptorBTC) GetTransactions(params *adaptor.GetTransactionsParams) (string, error) {
 	return GetTransactions(params, &abtc.RPCParams, abtc.NetID)
 }

@@ -70,6 +70,25 @@ func TestGetBalance(t *testing.T) {
 	}
 }
 
+func TestGetBalanceHttp(t *testing.T) {
+	testResult := `{"value":16.0191}`
+
+	//getBalanceParams := &adaptor.GetBalanceParams{"mp6DHyYNuD28aiE1MQdKuRAdH7ZNydqUBC", 0}
+	getBalanceParams := &adaptor.GetBalanceHttpParams{"mp6DHyYNuD28aiE1MQdKuRAdH7ZNydqUBC", 6}
+	//getBalanceParams := &adaptor.GetBalanceParams{"tb1q73un52phlrsug2r35fgnrlme987tr3cgm88k8j", 0}//?
+	//getBalanceParams := &adaptor.GetBalanceParams{"1DEP8i3QJCsomS4BSMY2RpU1upv62aGvhD", 0}
+
+	result, err := GetBalanceHttp(getBalanceParams, NETID_TEST)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(result)
+		if !strings.Contains(result, testResult) {
+			fmt.Printf("unexpected result - got: %v, "+"want: %v\n", result, testResult)
+		}
+	}
+}
+
 func TestGetTransactions(t *testing.T) {
 	rpcParams := RPCParams{
 		Host:      "localhost:18334",

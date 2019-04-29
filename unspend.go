@@ -313,6 +313,53 @@ func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams
 	return string(jsonResult), nil
 }
 
+type GetBalanceHttpResponse struct {
+	//Status string `json:"status"`
+	Data struct {
+		//Network            string `json:"network"`
+		Address            string `json:"address"`
+		ConfirmedBalance   string `json:"confirmed_balance"`
+		UnconfirmedBalance string `json:"unconfirmed_balance"`
+	} `json:"data"`
+}
+
+func GetBalanceHttp(params *adaptor.GetBalanceHttpParams, netID int) (string, error) {
+	if "" == params.Address {
+		return "", errors.New("Address is empty")
+	}
+	var request string
+	if netID == NETID_MAIN {
+		request = base + "get_address_balance/BTC/"
+	} else {
+		request = base + "get_address_balance/BTCTEST/"
+	}
+	request += params.Address
+	if params.Minconf != 0 {
+		request += "/" + strconv.Itoa(params.Minconf)
+	}
+
+	strRespose, err, _ := httpGet(request)
+	if err != nil {
+		return "", err
+	}
+
+	var balanceRes GetBalanceHttpResponse
+	err = json.Unmarshal([]byte(strRespose), &balanceRes)
+	if err != nil {
+		return "", err
+	}
+	//compute total Amount for balance
+	var result adaptor.GetBalanceHttpResult
+	balance, _ := strconv.ParseFloat(balanceRes.Data.ConfirmedBalance, 64)
+	result.Value = balance
+	jsonResult, err := json.Marshal(result)
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonResult), nil
+}
+
 func getAddrValue(client *rpcclient.Client, chainParams *chaincfg.Params,
 	txHash *chainhash.Hash, index int) (addr string, value float64) {
 	//get raw transaction by txHash
