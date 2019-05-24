@@ -783,6 +783,7 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 	//result for return
 	var mergeTransactionResult adaptor.MergeTransactionResult
 	mergeTransactionResult.TransactionHex = hex.EncodeToString(buf.Bytes())
+	mergeTransactionResult.TransactionHash = tx.TxHash().String()
 	mergeTransactionResult.Complete = complete
 
 	jsonResult, err := json.Marshal(mergeTransactionResult)
