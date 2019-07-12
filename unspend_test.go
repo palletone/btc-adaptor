@@ -12,7 +12,7 @@ func TestGetUTXO(t *testing.T) {
 	//	parms := `{"address": "mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt","minconf": 0,"maxconf": 999999,"maximumCount": 10}`
 	//	parms := `{"address": "miZqthevf8LWguQmUR6EwynULqjKmYWxyY","minconf": 0,"maxconf": 999999,"maximumCount": 10}`
 	//	parms := `{"address": "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA","minconf": 0,"maxconf": 999999,"maximumCount": 10}`
-	parms := `{"address": "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5","minconf": 0,"maxconf": 999999,"maximumCount": 100}`
+	parms := &adaptor.GetUTXOParams{Address: "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"}
 
 	rpcParams := RPCParams{
 		Host:      "localhost:18334",

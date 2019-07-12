@@ -464,21 +464,14 @@ func SendTransactionHttp(sendTransactionParams *adaptor.SendTransactionHttpParam
 	return string(jsonResult), nil
 }
 
-func SendTransaction(params string, rpcParams *RPCParams) string {
-	//convert params from json format
-	var sendTransactionParams adaptor.SendTransactionParams
-	err := json.Unmarshal([]byte(params), &sendTransactionParams)
-	if err != nil {
-		return err.Error()
-	}
-
+func SendTransaction(params *adaptor.SendTransactionParams, rpcParams *RPCParams) string {
 	//check empty string
-	if "" == sendTransactionParams.TransactionHex {
+	if "" == params.TransactionHex {
 		return "Params error : NO TransactionHex."
 	}
 
 	//decode Transaction hexString to bytes
-	rawTXBytes, err := hex.DecodeString(sendTransactionParams.TransactionHex)
+	rawTXBytes, err := hex.DecodeString(params.TransactionHex)
 	if err != nil {
 		return err.Error()
 	}

@@ -94,19 +94,12 @@ func GetNet(netID int) *chaincfg.Params {
 	return realNet
 }
 
-func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
-	//convert params from json format
-	var getUTXOParams adaptor.GetUTXOParams
-	err := json.Unmarshal([]byte(params), &getUTXOParams)
-	if err != nil {
-		return err.Error()
-	}
-
+func GetUTXO(params *adaptor.GetUTXOParams, rpcParams *RPCParams, netID int) string {
 	//chainnet
 	realNet := GetNet(netID)
 
 	//convert address from string
-	address := strings.TrimSpace(getUTXOParams.Address) //Trim whitespace
+	address := strings.TrimSpace(params.Address) //Trim whitespace
 	if len(address) == 0 {
 		return "Params error : NO addresss."
 	}
@@ -137,7 +130,7 @@ func GetUTXO(params string, rpcParams *RPCParams, netID int) string {
 
 	//the result for return
 	for _, msgTx := range msgTxs {
-		if int(msgTx.Confirmations) < getUTXOParams.Minconf {
+		if int(msgTx.Confirmations) < params.Minconf {
 			continue
 		}
 		//transaction inputs
