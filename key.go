@@ -96,7 +96,9 @@ func GetAddressByPubkey(pubKeyHex string, netID int) (string, error) {
 
 	addressPubKey, err := btcutil.NewAddressPubKey(pubKeyBytes,
 		realNet)
-
+	if err != nil {
+		return "", err
+	}
 	return addressPubKey.EncodeAddress(), nil
 }
 
