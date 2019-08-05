@@ -50,61 +50,61 @@ func (abtc AdaptorBTC) GetAddress(wifPriKey string) (address string) {
 func (abtc AdaptorBTC) GetAddressByPubkey(pubKeyHex string) (string, error) {
 	return GetAddressByPubkey(pubKeyHex, abtc.NetID)
 }
-func (abtc AdaptorBTC) CreateMultiSigAddress(params *adaptor.CreateMultiSigParams) (string, error) {
+func (abtc AdaptorBTC) CreateMultiSigAddress(params *adaptor.CreateMultiSigParams) (*adaptor.CreateMultiSigResult, error) {
 	return CreateMultiSigAddress(params, abtc.NetID)
 }
 
-func (abtc AdaptorBTC) GetUTXO(params *adaptor.GetUTXOParams) string {
+func (abtc AdaptorBTC) GetUTXO(params *adaptor.GetUTXOParams) (*adaptor.GetUTXOResult, error) {
 	return GetUTXO(params, &abtc.RPCParams, abtc.NetID)
 }
-func (abtc AdaptorBTC) GetUTXOHttp(params *adaptor.GetUTXOHttpParams) (string, error) {
+func (abtc AdaptorBTC) GetUTXOHttp(params *adaptor.GetUTXOHttpParams) (*adaptor.GetUTXOHttpResult, error) {
 	return GetUTXOHttp(params, abtc.NetID)
 }
 
-func (abtc AdaptorBTC) RawTransactionGen(params *adaptor.RawTransactionGenParams) (string, error) {
+func (abtc AdaptorBTC) RawTransactionGen(params *adaptor.RawTransactionGenParams) (*adaptor.RawTransactionGenResult, error) {
 	return RawTransactionGen(params, abtc.NetID)
 }
-func (abtc AdaptorBTC) DecodeRawTransaction(params *adaptor.DecodeRawTransactionParams) (string, error) {
+func (abtc AdaptorBTC) DecodeRawTransaction(params *adaptor.DecodeRawTransactionParams) (*adaptor.DecodeRawTransactionResult, error) {
 	return DecodeRawTransaction(params, abtc.NetID)
 }
-func (abtc AdaptorBTC) GetTransactionByHash(params *adaptor.GetTransactionByHashParams) (string, error) {
+func (abtc AdaptorBTC) GetTransactionByHash(params *adaptor.GetTransactionByHashParams) (*adaptor.GetTransactionByHashResult, error) {
 	return GetTransactionByHash(params, &abtc.RPCParams)
 }
-func (abtc AdaptorBTC) GetTransactionHttp(params *adaptor.GetTransactionHttpParams) (string, error) {
+func (abtc AdaptorBTC) GetTransactionHttp(params *adaptor.GetTransactionHttpParams) (*adaptor.GetTransactionHttpResult, error) {
 	return GetTransactionHttp(params, abtc.NetID)
 }
 
-func (abtc AdaptorBTC) SignTransaction(params *adaptor.SignTransactionParams) (string, error) {
+func (abtc AdaptorBTC) SignTransaction(params *adaptor.SignTransactionParams) (*adaptor.SignTransactionResult, error) {
 	return SignTransaction(params, abtc.NetID)
 }
-func (abtc AdaptorBTC) SignTxSend(params *adaptor.SignTxSendParams) (string, error) {
+func (abtc AdaptorBTC) SignTxSend(params *adaptor.SignTxSendParams) (*adaptor.SignTxSendResult, error) {
 	return SignTxSend(params, &abtc.RPCParams, abtc.NetID)
 }
-func (abtc AdaptorBTC) GetBalance(params *adaptor.GetBalanceParams) (string, error) {
+func (abtc AdaptorBTC) GetBalance(params *adaptor.GetBalanceParams) (*adaptor.GetBalanceResult, error) {
 	return GetBalance(params, &abtc.RPCParams, abtc.NetID)
 }
-func (abtc AdaptorBTC) GetBalanceHttp(params *adaptor.GetBalanceHttpParams) (string, error) {
+func (abtc AdaptorBTC) GetBalanceHttp(params *adaptor.GetBalanceHttpParams) (*adaptor.GetBalanceHttpResult, error) {
 	return GetBalanceHttp(params, abtc.NetID)
 }
-func (abtc AdaptorBTC) GetTransactions(params *adaptor.GetTransactionsParams) (string, error) {
+func (abtc AdaptorBTC) GetTransactions(params *adaptor.GetTransactionsParams) (*adaptor.TransactionsResult, error) {
 	return GetTransactions(params, &abtc.RPCParams, abtc.NetID)
 }
 
-func (abtc AdaptorBTC) SendTransaction(params *adaptor.SendTransactionParams) string {
+func (abtc AdaptorBTC) SendTransaction(params *adaptor.SendTransactionParams) (*adaptor.SendTransactionResult, error) {
 	return SendTransaction(params, &abtc.RPCParams)
 }
-func (abtc AdaptorBTC) SendTransactionHttp(params *adaptor.SendTransactionHttpParams) (string, error) {
+func (abtc AdaptorBTC) SendTransactionHttp(params *adaptor.SendTransactionHttpParams) (*adaptor.SendTransactionHttpResult, error) {
 	return SendTransactionHttp(params, abtc.NetID)
 }
 
-func (abtc AdaptorBTC) MergeTransaction(params *adaptor.MergeTransactionParams) (string, error) {
+func (abtc AdaptorBTC) MergeTransaction(params *adaptor.MergeTransactionParams) (*adaptor.MergeTransactionResult, error) {
 	return MergeTransaction(params, abtc.NetID)
 }
 
-func (abtc AdaptorBTC) SignMessage(params *adaptor.SignMessageParams) (string, error) {
+func (abtc AdaptorBTC) SignMessage(params *adaptor.SignMessageParams) (*adaptor.SignMessageResult, error) {
 	return SignMessage(params)
 }
 
-func (abtc AdaptorBTC) VerifyMessage(params *adaptor.VerifyMessageParams) (string, error) {
+func (abtc AdaptorBTC) VerifyMessage(params *adaptor.VerifyMessageParams) (*adaptor.VerifyMessageResult, error) {
 	return VerifyMessage(params, abtc.NetID)
 }

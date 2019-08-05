@@ -38,7 +38,7 @@ import (
 	"github.com/palletone/adaptor"
 )
 
-func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams, netID int) (string, error) {
+func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams, netID int) (*adaptor.RawTransactionGenResult, error) {
 	msgTx := wire.NewMsgTx(1)
 	//transaction inputs
 	for _, inputOne := range rawTransactionGenParams.Inputs {
@@ -50,7 +50,7 @@ func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams,
 		msgTx.AddTxIn(input)
 	}
 	if len(msgTx.TxIn) == 0 {
-		return "", errors.New("Params error : NO Input.")
+		return nil, errors.New("Params error : NO Input.")
 	}
 
 	//chainnet
@@ -63,48 +63,43 @@ func RawTransactionGen(rawTransactionGenParams *adaptor.RawTransactionGenParams,
 		}
 		addr, err := btcutil.DecodeAddress(outOne.Address, realNet)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		pkScript, _ := txscript.PayToAddrScript(addr)
 		txOut := wire.NewTxOut(int64(outOne.Amount*1e8), pkScript)
 		msgTx.AddTxOut(txOut)
 	}
 	if len(msgTx.TxOut) == 0 {
-		return "", errors.New("Params error : NO Output.")
+		return nil, errors.New("Params error : NO Output.")
 	}
 
 	//SerializeSize transaction to bytes
 	buf := bytes.NewBuffer(make([]byte, 0, msgTx.SerializeSize()))
 	if err := msgTx.Serialize(buf); err != nil {
-		return "", err
+		return nil, err
 	}
 	//result for return
 	var rawTransactionGenResult adaptor.RawTransactionGenResult
 	rawTransactionGenResult.Rawtx = hex.EncodeToString(buf.Bytes())
 
-	jsonResult, err := json.Marshal(rawTransactionGenResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &rawTransactionGenResult, nil
 }
 
-func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransactionParams, netID int) (string, error) {
+func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransactionParams, netID int) (*adaptor.DecodeRawTransactionResult, error) {
 	if "" == decodeRawTransactionParams.Rawtx {
-		return "", errors.New("Params error : NO Rawtx.")
+		return nil, errors.New("Params error : NO Rawtx.")
 	}
 
 	//covert rawtransaction hexString to bytes
 	rawTXBytes, err := hex.DecodeString(decodeRawTransactionParams.Rawtx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var mtx wire.MsgTx
 	err = mtx.Deserialize(bytes.NewReader(rawTXBytes))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	realNet := GetNet(netID)
@@ -122,32 +117,27 @@ func DecodeRawTransaction(decodeRawTransactionParams *adaptor.DecodeRawTransacti
 		result.Outputs = append(result.Outputs, adaptor.Output{addrs[0].EncodeAddress(), btcutil.Amount(mtx.TxOut[i].Value).ToBTC()})
 	}
 
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &result, nil
 }
 
-func GetTransactionByHash(getTransactionByHashParams *adaptor.GetTransactionByHashParams, rpcParams *RPCParams) (string, error) {
+func GetTransactionByHash(getTransactionByHashParams *adaptor.GetTransactionByHashParams, rpcParams *RPCParams) (*adaptor.GetTransactionByHashResult, error) {
 	//covert TxHash
 	hash, err := chainhash.NewHashFromStr(getTransactionByHashParams.TxHash)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//get rpc client
 	client, err := GetClient(rpcParams)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer client.Shutdown()
 
 	//rpc GetRawTransactionVerbose
 	txResult, err := client.GetRawTransactionVerbose(hash)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//result for return
@@ -163,12 +153,7 @@ func GetTransactionByHash(getTransactionByHashParams *adaptor.GetTransactionByHa
 	getTransactionByHashResult.Txid = txResult.Txid
 	getTransactionByHashResult.Confirms = txResult.Confirmations
 
-	jsonResult, err := json.Marshal(getTransactionByHashResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &getTransactionByHashResult, nil
 }
 
 func httpGet(url string) (string, error, int) {
@@ -238,9 +223,9 @@ type GetTransactionHttpResponse struct {
 	} `json:"data"`
 }
 
-func GetTransactionHttp(getTransactionByHashParams *adaptor.GetTransactionHttpParams, netID int) (string, error) {
+func GetTransactionHttp(getTransactionByHashParams *adaptor.GetTransactionHttpParams, netID int) (*adaptor.GetTransactionHttpResult, error) {
 	if "" == getTransactionByHashParams.TxHash {
-		return "", errors.New("TxHash is empty")
+		return nil, errors.New("TxHash is empty")
 	}
 	var request string
 	if netID == NETID_MAIN {
@@ -251,13 +236,13 @@ func GetTransactionHttp(getTransactionByHashParams *adaptor.GetTransactionHttpPa
 	//
 	strRespose, err, _ := httpGet(request + getTransactionByHashParams.TxHash)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var txResult GetTransactionHttpResponse
 	err = json.Unmarshal([]byte(strRespose), &txResult)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//result for return
@@ -274,10 +259,5 @@ func GetTransactionHttp(getTransactionByHashParams *adaptor.GetTransactionHttpPa
 	getTransactionByHashResult.Txid = txResult.Data.Txid
 	getTransactionByHashResult.Confirms = uint64(txResult.Data.Confirmations)
 
-	jsonResult, err := json.Marshal(getTransactionByHashResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &getTransactionByHashResult, nil
 }

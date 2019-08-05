@@ -2,7 +2,6 @@ package adaptorbtc
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/palletone/adaptor"
@@ -24,7 +23,7 @@ func TestGetUTXO(t *testing.T) {
 	//	testResult := "101d482b60cd3f74a61ce265d62e383456b9c21c84477931d207ea8f503d84cc"
 	//	testResult := "cdc28467435bb3060333777e289adb200c033eee72c96c68cb9790534516f6eb"
 
-	result := GetUTXO(parms, &rpcParams, NETID_TEST)
+	result, _ := GetUTXO(parms, &rpcParams, NETID_TEST)
 	//	if !strings.Contains(result, testResult) {
 	//		t.Errorf("unexpected result - got: %v, "+"want: %v", result, testResult)
 	//	}
@@ -52,7 +51,8 @@ func TestGetBalance(t *testing.T) {
 		CertPath:  GCertPath,
 	}
 
-	testResult := `{"value":0.999}`
+	//testResult := `{"value":0.999}`
+	testResult := 0.999
 
 	//	getBalanceParams := &adaptor.GetBalanceParams{"mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt", 1}
 	getBalanceParams := &adaptor.GetBalanceParams{"mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5", 0}
@@ -64,14 +64,15 @@ func TestGetBalance(t *testing.T) {
 		fmt.Println(err.Error())
 	} else {
 		fmt.Println(result)
-		if !strings.Contains(result, testResult) {
+		if result.Value != testResult {
 			fmt.Printf("unexpected result - got: %v, "+"want: %v\n", result, testResult)
 		}
 	}
 }
 
 func TestGetBalanceHttp(t *testing.T) {
-	testResult := `{"value":16.0191}`
+	//testResult := `{"value":16.0191}`
+	testResult := 16.0191
 
 	//getBalanceParams := &adaptor.GetBalanceParams{"mp6DHyYNuD28aiE1MQdKuRAdH7ZNydqUBC", 0}
 	getBalanceParams := &adaptor.GetBalanceHttpParams{"mp6DHyYNuD28aiE1MQdKuRAdH7ZNydqUBC", 6}
@@ -83,7 +84,7 @@ func TestGetBalanceHttp(t *testing.T) {
 		fmt.Println(err.Error())
 	} else {
 		fmt.Println(result)
-		if !strings.Contains(result, testResult) {
+		if result.Value != testResult {
 			fmt.Printf("unexpected result - got: %v, "+"want: %v\n", result, testResult)
 		}
 	}

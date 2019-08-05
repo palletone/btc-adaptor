@@ -9,8 +9,6 @@ import (
 )
 
 func TestSignTransaction(t *testing.T) {
-	theComplete := `"complete":true`
-
 	//	//
 	//	params2In1Out := &adaptor.SignTransactionParams{
 	//		TransactionHex: "0100000002897b0b90db2e7eebdd82bfd18a01bdf18a9c8cc7c10df8e19ff131c04fa696160000000000ffffffffea60d9d11cc3e40e17f068ca1191ff5d3ec11d016393addf63305001ce813c990000000000ffffffff01f85b0c09000000001976a9140f08e55bcfc207632d2dcfc3d4db4b6d8d91b22e88ac00000000",
@@ -48,7 +46,7 @@ func TestSignTransaction(t *testing.T) {
 	if err != nil {
 		fmt.Println(err.Error())
 	} else {
-		if strings.Contains(result, theComplete) {
+		if result.Complete {
 			t.Errorf("complete - got: true, want: false")
 		}
 		fmt.Println(result)
@@ -82,7 +80,7 @@ func TestSignTransaction(t *testing.T) {
 	if err != nil {
 		fmt.Println(err.Error())
 	} else {
-		if !strings.Contains(resultLast, theComplete) {
+		if !resultLast.Complete {
 			t.Errorf("complete - got: false, want: true")
 		}
 	}
@@ -121,7 +119,7 @@ func TestSendTransaction(t *testing.T) {
 	paramsSend := &adaptor.SendTransactionParams{
 		TransactionHex: "010000000145796293a6d01a72d2b160dbaefe27acb659ad72d1a6d47b2e204c7be221998d010000006a473044022020bc4bb2aa9419c7ed6bd2355c6ffd1a8a845ee0b03e00bfe7725cc4fdf32a3b022069b3275dc9ae5e6c66b2ead2afb18b50e029e5e1015ff8ad4c9c90a5c922a4660121020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cbffffffff0200e1f5050000000017a9147e037d8b8093a7cf3a6ec83aa8c852761a5d0cce8730033c05000000001976a914bddc9a62e9b7c3cfdbe1c817520e24e32c339f3288ac00000000",
 	}
-	resultHash := SendTransaction(paramsSend, &rpcParams)
+	resultHash, _ := SendTransaction(paramsSend, &rpcParams)
 	//	theHash := `"TransactionHah"`
 	//	if !strings.Contains(resultHash, theHash) {
 	//		t.Errorf("unexpected result - got: %s, "+

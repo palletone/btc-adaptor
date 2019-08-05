@@ -94,24 +94,24 @@ func GetNet(netID int) *chaincfg.Params {
 	return realNet
 }
 
-func GetUTXO(params *adaptor.GetUTXOParams, rpcParams *RPCParams, netID int) string {
+func GetUTXO(params *adaptor.GetUTXOParams, rpcParams *RPCParams, netID int) (*adaptor.GetUTXOResult, error) {
 	//chainnet
 	realNet := GetNet(netID)
 
 	//convert address from string
 	address := strings.TrimSpace(params.Address) //Trim whitespace
 	if len(address) == 0 {
-		return "Params error : NO addresss."
+		return nil, errors.New("Params error : NO addresss.")
 	}
 	addr, err := btcutil.DecodeAddress(address, realNet)
 	if err != nil {
-		return err.Error()
+		return nil, err
 	}
 
 	//get rpc client
 	client, err := GetClient(rpcParams)
 	if err != nil {
-		return err.Error()
+		return nil, err
 	}
 	defer client.Shutdown()
 
@@ -121,7 +121,7 @@ func GetUTXO(params *adaptor.GetUTXOParams, rpcParams *RPCParams, netID int) str
 	count := 999999
 	msgTxs, err := client.SearchRawTransactionsVerbose(addr, 0, count, true, false, strs)
 	if err != nil {
-		return "Search : " + err.Error()
+		return nil, errors.New("Search : " + err.Error())
 	}
 
 	//save utxo to map, check next one transanction is spend or not
@@ -159,17 +159,12 @@ func GetUTXO(params *adaptor.GetUTXOParams, rpcParams *RPCParams, netID int) str
 			oneUTXO := adaptor.UTXO{keys[0], uint32(vout), value, 0}
 			result.UTXOs = append(result.UTXOs, oneUTXO)
 		} else {
-			return "Process fatal error : key invalid."
+			return nil, errors.New("Process fatal error : key invalid.")
 		}
 
 	}
 
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return err.Error()
-	}
-
-	return string(jsonResult)
+	return &result, nil
 }
 
 type GetUTXOHttpResponse struct {
@@ -190,9 +185,9 @@ type GetUTXOHttpResponse struct {
 }
 
 //only return 100 default, need use params after_txid
-func GetUTXOHttp(params *adaptor.GetUTXOHttpParams, netID int) (string, error) {
+func GetUTXOHttp(params *adaptor.GetUTXOHttpParams, netID int) (*adaptor.GetUTXOHttpResult, error) {
 	if "" == params.Address {
-		return "", errors.New("Address is empty")
+		return nil, errors.New("Address is empty")
 	}
 	var request string //todo: use after_txid
 	if netID == NETID_MAIN {
@@ -203,32 +198,26 @@ func GetUTXOHttp(params *adaptor.GetUTXOHttpParams, netID int) (string, error) {
 
 	strRespose, err, _ := httpGet(request + params.Address)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var msgTxs GetUTXOHttpResponse
 	err = json.Unmarshal([]byte(strRespose), &msgTxs)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//
-	var result adaptor.GetUTXOResult
+	var result adaptor.GetUTXOHttpResult
 	for _, tx := range msgTxs.Data.Txs {
 		value, _ := strconv.ParseFloat(tx.Value, 64)
 		oneUTXO := adaptor.UTXO{tx.Txid, uint32(tx.OutputNo), value, uint64(tx.Confirmations)}
 		result.UTXOs = append(result.UTXOs, oneUTXO)
 	}
-
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &result, nil
 }
 
-func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams, netID int) (string, error) {
+func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams, netID int) (*adaptor.GetBalanceResult, error) {
 	//chainnet
 	realNet := GetNet(netID)
 
@@ -237,18 +226,18 @@ func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams
 	if len(getBalanceParams.Address) != 0 {
 		addr, err := btcutil.DecodeAddress(getBalanceParams.Address, realNet)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		addrs = append(addrs, addr)
 	}
 	if len(addrs) != 1 {
-		return "", errors.New("Params error : Must one address.")
+		return nil, errors.New("Params error : Must one address.")
 	}
 
 	//get rpc client
 	client, err := GetClient(rpcParams)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer client.Shutdown()
 
@@ -258,7 +247,7 @@ func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams
 	count := 999999
 	msgTxs, err := client.SearchRawTransactionsVerbose(addrs[0], 0, count, true, false, strs)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//save utxo to map, check next one transanction is spend or not
@@ -298,12 +287,8 @@ func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams
 
 	//
 	result.Value = allAmount
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
 
-	return string(jsonResult), nil
+	return &result, nil
 }
 
 type GetBalanceHttpResponse struct {
@@ -316,9 +301,9 @@ type GetBalanceHttpResponse struct {
 	} `json:"data"`
 }
 
-func GetBalanceHttp(params *adaptor.GetBalanceHttpParams, netID int) (string, error) {
+func GetBalanceHttp(params *adaptor.GetBalanceHttpParams, netID int) (*adaptor.GetBalanceHttpResult, error) {
 	if "" == params.Address {
-		return "", errors.New("Address is empty")
+		return nil, errors.New("Address is empty")
 	}
 	var request string
 	if netID == NETID_MAIN {
@@ -333,24 +318,20 @@ func GetBalanceHttp(params *adaptor.GetBalanceHttpParams, netID int) (string, er
 
 	strRespose, err, _ := httpGet(request)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var balanceRes GetBalanceHttpResponse
 	err = json.Unmarshal([]byte(strRespose), &balanceRes)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	//compute total Amount for balance
 	var result adaptor.GetBalanceHttpResult
 	balance, _ := strconv.ParseFloat(balanceRes.Data.ConfirmedBalance, 64)
 	result.Value = balance
-	jsonResult, err := json.Marshal(result)
-	if err != nil {
-		return "", err
-	}
 
-	return string(jsonResult), nil
+	return &result, nil
 }
 
 func getAddrValue(client *rpcclient.Client, chainParams *chaincfg.Params,
@@ -373,28 +354,20 @@ func getAddrValue(client *rpcclient.Client, chainParams *chaincfg.Params,
 	return "", 0
 }
 
-func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcParams *RPCParams, netID int) (string, error) {
-	//	//convert params from json format
-	//	var getTransactionsParams GetTransactionsParams
-	//	err := json.Unmarshal([]byte(params), &getTransactionsParams)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//		return err.Error()
-	//	}
-
+func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcParams *RPCParams, netID int) (*adaptor.TransactionsResult, error) {
 	//chainnet
 	realNet := GetNet(netID)
 
 	//convert address from string
 	addr, err := btcutil.DecodeAddress(getTransactionsParams.Account, realNet)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//get rpc client
 	client, err := GetClient(rpcParams)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer client.Shutdown()
 
@@ -402,7 +375,7 @@ func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcPa
 	var strs []string
 	msgTxs, err := client.SearchRawTransactionsVerbose(addr, 0, getTransactionsParams.Count, true, false, strs)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//save utxo to map, check next one transanction is spend or not
@@ -478,10 +451,5 @@ func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcPa
 		transAll.Transactions = append(transAll.Transactions, transOne)
 	}
 
-	jsonResult, err := json.Marshal(transAll)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &transAll, nil
 }

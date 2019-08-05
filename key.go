@@ -20,7 +20,6 @@ package adaptorbtc
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"strings"
 
@@ -102,19 +101,12 @@ func GetAddressByPubkey(pubKeyHex string, netID int) (string, error) {
 	return addressPubKey.EncodeAddress(), nil
 }
 
-func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, netID int) (string, error) {
-	//	var createMultiSigParams CreateMultiSigParams
-	//	err := json.Unmarshal([]byte(params), &createMultiSigParams)
-	//	if err != nil {
-	//		log.Fatal(err)
-	//		return err.Error()
-	//	}
-
+func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, netID int) (*adaptor.CreateMultiSigResult, error) {
 	//0 < m < n and publicKeys == n
 	if 0 == createMultiSigParams.M ||
 		createMultiSigParams.M > createMultiSigParams.N ||
 		0 == createMultiSigParams.N {
-		return "", errors.New("Params error : 0 < m < n.")
+		return nil, errors.New("Params error : 0 < m < n.")
 	}
 
 	//chainnet
@@ -129,28 +121,28 @@ func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, n
 		}
 		pubKeyBytes, err := hex.DecodeString(publicKeyString)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		addressPubKey, err := btcutil.NewAddressPubKey(pubKeyBytes, realNet)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		pubkeys[i] = addressPubKey
 	}
 	if len(createMultiSigParams.PublicKeys) != createMultiSigParams.N {
-		return "", errors.New("Params error : PublicKeys small than n.")
+		return nil, errors.New("Params error : PublicKeys small than n.")
 	}
 	//create multisig address
 	pkScript, err := txscript.MultiSigScript(pubkeys, createMultiSigParams.M)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//multisig address scriptHash
 	scriptAddr, err := btcutil.NewAddressScriptHash(pkScript, realNet)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	//result for return
 	var createMultiSigResult adaptor.CreateMultiSigResult
@@ -161,10 +153,5 @@ func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, n
 		createMultiSigResult.Addresses = append(createMultiSigResult.Addresses, pubkey.EncodeAddress())
 	}
 
-	jsonResult, err := json.Marshal(createMultiSigResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &createMultiSigResult, nil
 }

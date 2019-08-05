@@ -2,8 +2,6 @@ package adaptorbtc
 
 import (
 	"fmt"
-	"strings"
-
 	"testing"
 
 	"github.com/palletone/adaptor"
@@ -75,11 +73,11 @@ func TestCreateMultiSigAddress(t *testing.T) {
 	}
 	testRedeem := "522103940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d541051421020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb21029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef553ae"
 	multiAddrMain := "3DBKFERmXBuy8btJ2x778Dyz8BQw7obDNn"
-	if !strings.Contains(resultMain, testRedeem) {
+	if resultMain.RedeemScript != testRedeem {
 		t.Errorf("unexpected address - got: %x, "+
 			"want: %x", resultMain, testRedeem)
 	}
-	if !strings.Contains(resultMain, multiAddrMain) {
+	if resultMain.P2ShAddress != multiAddrMain {
 		t.Errorf("unexpected address - got: %x, "+
 			"want: %x", resultMain, multiAddrMain)
 	}
@@ -92,11 +90,11 @@ func TestCreateMultiSigAddress(t *testing.T) {
 		return
 	}
 	multiAddrTest := "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"
-	if !strings.Contains(resultTest, testRedeem) {
+	if resultTest.RedeemScript != testRedeem {
 		t.Errorf("unexpected address - got: %s, "+
 			"want: %s", resultTest, testRedeem)
 	}
-	if !strings.Contains(resultTest, multiAddrTest) {
+	if resultTest.P2ShAddress != multiAddrTest {
 		t.Errorf("unexpected address - got: %s, "+
 			"want: %s", resultTest, multiAddrTest)
 	}

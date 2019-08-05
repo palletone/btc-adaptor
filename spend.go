@@ -305,10 +305,10 @@ func SignTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
 	return signErrors, err
 }
 
-func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID int) (string, error) {
+func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID int) (*adaptor.SignTransactionResult, error) {
 	//check empty string
 	if "" == signTransactionParams.TransactionHex {
-		return "", errors.New("Params error : NO TransactionHex.")
+		return nil, errors.New("Params error : NO TransactionHex.")
 	}
 
 	//chainnet
@@ -381,7 +381,7 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 		break
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//
@@ -396,7 +396,7 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 	//if complete ruturn true
 	result, err := signRawTransactionCmd(&cmd, realNet)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//result for return
@@ -405,12 +405,7 @@ func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID
 	signTransactionResult.TransactionHex = signRawResult.Hex
 	signTransactionResult.Complete = signRawResult.Complete
 
-	jsonResult, err := json.Marshal(signTransactionResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &signTransactionResult, nil
 }
 
 type SendTransactionHttppResponse struct {
@@ -421,10 +416,10 @@ type SendTransactionHttppResponse struct {
 	} `json:"data"`
 }
 
-func SendTransactionHttp(sendTransactionParams *adaptor.SendTransactionHttpParams, netID int) (string, error) {
+func SendTransactionHttp(sendTransactionParams *adaptor.SendTransactionHttpParams, netID int) (*adaptor.SendTransactionHttpResult, error) {
 	//check empty string
 	if "" == sendTransactionParams.TransactionHex {
-		return "", errors.New("Params error : NO TransactionHex.")
+		return nil, errors.New("Params error : NO TransactionHex.")
 	}
 
 	var request string
@@ -438,79 +433,69 @@ func SendTransactionHttp(sendTransactionParams *adaptor.SendTransactionHttpParam
 	params := map[string]string{"tx_hex": sendTransactionParams.TransactionHex}
 	paramsJson, err := json.Marshal(params)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	strRespose, err, _ := httpPost(request, string(paramsJson))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var txResult SendTransactionHttppResponse
 	err = json.Unmarshal([]byte(strRespose), &txResult)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//result for return
 	var sendTransactionResult adaptor.SendTransactionHttpResult
 	sendTransactionResult.TransactionHah = txResult.Data.Txid
 
-	jsonResult, err := json.Marshal(sendTransactionResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &sendTransactionResult, nil
 }
 
-func SendTransaction(params *adaptor.SendTransactionParams, rpcParams *RPCParams) string {
+func SendTransaction(params *adaptor.SendTransactionParams, rpcParams *RPCParams) (*adaptor.SendTransactionResult, error) {
 	//check empty string
 	if "" == params.TransactionHex {
-		return "Params error : NO TransactionHex."
+		return nil, errors.New("Params error : NO TransactionHex.")
 	}
 
 	//decode Transaction hexString to bytes
 	rawTXBytes, err := hex.DecodeString(params.TransactionHex)
 	if err != nil {
-		return err.Error()
+		return nil, err
 	}
 	//deserialize to MsgTx
 	var tx wire.MsgTx
 	err = tx.Deserialize(bytes.NewReader(rawTXBytes))
 	if err != nil {
-		return err.Error()
+		return nil, err
 	}
 
 	//get rpc client
 	client, err := GetClient(rpcParams)
 	if err != nil {
-		return err.Error()
+		return nil, err
 	}
 	defer client.Shutdown()
 
 	//send to network
 	hashTX, err := client.SendRawTransaction(&tx, false)
 	if err != nil {
-		return err.Error()
+		return nil, err
 	}
 
 	//result for return
 	var sendTransactionResult adaptor.SendTransactionResult
 	sendTransactionResult.TransactionHah = hashTX.String()
 
-	jsonResult, err := json.Marshal(sendTransactionResult)
-	if err != nil {
-		return err.Error()
-	}
-
-	return string(jsonResult)
+	return &sendTransactionResult, nil
 }
 
-func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams, netID int) (string, error) {
+func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams, netID int) (*adaptor.SignTxSendResult, error) {
 	//check empty string
 	if "" == signTxSendParams.TransactionHex {
-		return "", errors.New("Params error : NO TransactionHex.")
+		return nil, errors.New("Params error : NO TransactionHex.")
 	}
 
 	//chainnet
@@ -582,7 +567,7 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 		break
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//
@@ -597,7 +582,7 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 	//if complete ruturn true
 	result, err := signRawTransactionCmd(&cmd, realNet)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//result for return
@@ -607,51 +592,46 @@ func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams
 		//get rpc client
 		client, err := GetClient(rpcParams)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		defer client.Shutdown()
 
 		//decode Transaction hexString to bytes
 		rawTXBytes, err := hex.DecodeString(signRawResult.Hex)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		//deserialize to MsgTx
 		var resultTX wire.MsgTx
 		err = resultTX.Deserialize(bytes.NewReader(rawTXBytes))
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		//send to network
 		hashTX, err := client.SendRawTransaction(&resultTX, false)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		signTxSendResult.TransactionHah = hashTX.String()
 
 		//SerializeSize transaction to bytes
 		bufTX := bytes.NewBuffer(make([]byte, 0, resultTX.SerializeSize()))
 		if err := resultTX.Serialize(bufTX); err != nil {
-			return "", err
+			return nil, err
 		}
 
 		signTxSendResult.TransactionHex = hex.EncodeToString(bufTX.Bytes())
 		signTxSendResult.Complete = true
 	}
 
-	jsonResult, err := json.Marshal(signTxSendResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &signTxSendResult, nil
 }
 
-func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, netID int) (string, error) {
+func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, netID int) (*adaptor.MergeTransactionResult, error) {
 	//check empty string
 	if 0 == len(mergeTransactionParams.MergeTransactionHexs) {
-		return "", errors.New("Params error : NO Merge TransactionHexs.")
+		return nil, errors.New("Params error : NO Merge TransactionHexs.")
 	}
 
 	//chainnet
@@ -684,7 +664,7 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 		break
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//deal merge txs
@@ -704,7 +684,7 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 		txs = append(txs, tx)
 	}
 	if len(txs) == 0 {
-		return "", errors.New("Params error : All Merge TransactionHexs is invalid.")
+		return nil, errors.New("Params error : All Merge TransactionHexs is invalid.")
 	}
 
 	//merge tx
@@ -771,7 +751,7 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 	//SerializeSize transaction to bytes
 	buf := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
 	if err := tx.Serialize(buf); err != nil {
-		return "", err
+		return nil, err
 	}
 	//result for return
 	var mergeTransactionResult adaptor.MergeTransactionResult
@@ -779,18 +759,13 @@ func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, ne
 	mergeTransactionResult.TransactionHash = tx.TxHash().String()
 	mergeTransactionResult.Complete = complete
 
-	jsonResult, err := json.Marshal(mergeTransactionResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &mergeTransactionResult, nil
 }
 
-func SignMessage(signMessageParams *adaptor.SignMessageParams) (string, error) {
+func SignMessage(signMessageParams *adaptor.SignMessageParams) (*adaptor.SignMessageResult, error) {
 	wif, err := btcutil.DecodeWIF(signMessageParams.Privkey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var buf bytes.Buffer
@@ -800,39 +775,34 @@ func SignMessage(signMessageParams *adaptor.SignMessageParams) (string, error) {
 	sigbytes, err := btcec.SignCompact(btcec.S256(), wif.PrivKey,
 		messageHash, true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//result for return
 	var mergeTransactionResult adaptor.SignMessageResult
 	mergeTransactionResult.Signature = base64.StdEncoding.EncodeToString(sigbytes)
 
-	jsonResult, err := json.Marshal(mergeTransactionResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &mergeTransactionResult, nil
 }
 
-func VerifyMessage(verifyMessageParams *adaptor.VerifyMessageParams, netID int) (string, error) {
+func VerifyMessage(verifyMessageParams *adaptor.VerifyMessageParams, netID int) (*adaptor.VerifyMessageResult, error) {
 	realNet := GetNet(netID)
 
 	// Decode the provided address.
 	addr, err := btcutil.DecodeAddress(verifyMessageParams.Address, realNet)
 	if err != nil {
-		return "", errors.New("Invalid address or key: " + err.Error())
+		return nil, errors.New("Invalid address or key: " + err.Error())
 	}
 
 	// Only P2PKH addresses are valid for signing.
 	if _, ok := addr.(*btcutil.AddressPubKeyHash); !ok {
-		return "", errors.New("Address is not a pay-to-pubkey-hash address")
+		return nil, errors.New("Address is not a pay-to-pubkey-hash address")
 	}
 
 	// Decode base64 signature.
 	sig, err := base64.StdEncoding.DecodeString(verifyMessageParams.Signature)
 	if err != nil {
-		return "", errors.New("Malformed base64 encoding: " + err.Error())
+		return nil, errors.New("Malformed base64 encoding: " + err.Error())
 	}
 
 	// Validate the signature - this just shows that it was valid at all.
@@ -846,7 +816,7 @@ func VerifyMessage(verifyMessageParams *adaptor.VerifyMessageParams, netID int) 
 	if err != nil {
 		// Mirror Bitcoin Core behavior, which treats error in
 		// RecoverCompact as invalid signature.
-		return "", errors.New("RecoverCompact failed: " + err.Error())
+		return nil, errors.New("RecoverCompact failed: " + err.Error())
 	}
 
 	// Reconstruct the pubkey hash.
@@ -860,19 +830,14 @@ func VerifyMessage(verifyMessageParams *adaptor.VerifyMessageParams, netID int) 
 	if err != nil {
 		// Again mirror Bitcoin Core behavior, which treats error in public key
 		// reconstruction as invalid signature.
-		return "", errors.New("AddressPubKey failed: " + err.Error())
+		return nil, errors.New("AddressPubKey failed: " + err.Error())
 	}
 
 	//result for return
 	var verifyMessageResult adaptor.VerifyMessageResult
 	verifyMessageResult.Valid = (address.EncodeAddress() == verifyMessageParams.Address) // Return boolean if addresses match.
 
-	jsonResult, err := json.Marshal(verifyMessageResult)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonResult), nil
+	return &verifyMessageResult, nil
 }
 
 //==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ===
