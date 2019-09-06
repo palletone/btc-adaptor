@@ -15,126 +15,72 @@
  * @author PalletOne core developers <dev@pallet.one>
  * @date 2018
  */
-package adaptorbtc
+package btcadaptor
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"errors"
-	"strings"
+	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
-	//"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcutil"
 
+	//"github.com/btcsuite/btcd/txscript"
 	"github.com/palletone/btc-adaptor/txscript"
 
 	"github.com/palletone/adaptor"
 )
 
-func NewPrivateKey(netID int) (wifPriKey string) {
-	//rand bytes
-	randBytes := make([]byte, 32)
-	_, err := rand.Read(randBytes)
+func NewPrivateKey(netID int) ([]byte, error) {
+	key, err := btcec.NewPrivateKey(btcec.S256())
 	if err != nil {
-		return err.Error()
+		return nil, err
 	}
+	fmt.Printf("%x\n", key.PubKey().SerializeCompressed())
 
-	//chainnet
-	realNet := GetNet(netID)
-
-	//wif wallet import format
-	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), randBytes)
-	wif, err := btcutil.NewWIF(key, realNet, true)
-	if err != nil {
-		return err.Error()
-	}
-	return wif.String()
+	return key.Serialize(), nil
 }
 
-func GetPublicKey(wifPriKey string, netID int) (pubKey string) {
-	//decode to wif
-	wif, err := btcutil.DecodeWIF(wifPriKey)
-	if err != nil {
-		return err.Error()
-	}
-
-	//chainnet
-	realNet := GetNet(netID)
-
-	addressPubKey, err := btcutil.NewAddressPubKey(wif.SerializePubKey(),
-		realNet)
-	return addressPubKey.String()
+func GetPublicKey(priKey []byte, netID int) ([]byte, error) {
+	_, pubKey := btcec.PrivKeyFromBytes(btcec.S256(), priKey)
+	return pubKey.SerializeCompressed(), nil
 }
 
-func GetAddress(wifPriKey string, netID int) (address string) {
-	//decode to wif
-	wif, err := btcutil.DecodeWIF(wifPriKey)
-	if err != nil {
-		return err.Error()
-	}
-
+func PubKeyToAddress(pubKey []byte, netID int) (string, error) {
 	//chainnet
 	realNet := GetNet(netID)
-
-	addressPubKey, err := btcutil.NewAddressPubKey(wif.SerializePubKey(),
-		realNet)
-
-	return addressPubKey.EncodeAddress()
-}
-
-func GetAddressByPubkey(pubKeyHex string, netID int) (string, error) {
-	//
-	pubKeyBytes, err := hex.DecodeString(pubKeyHex)
-	if err != nil {
-		return "", err
-	}
-
-	//chainnet
-	realNet := GetNet(netID)
-
-	addressPubKey, err := btcutil.NewAddressPubKey(pubKeyBytes,
-		realNet)
+	addressPubKey, err := btcutil.NewAddressPubKey(pubKey, realNet)
 	if err != nil {
 		return "", err
 	}
 	return addressPubKey.EncodeAddress(), nil
 }
 
-func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, netID int) (*adaptor.CreateMultiSigResult, error) {
+func CreateMultiSigAddress(input *adaptor.CreateMultiSigAddressInput, netID int) (*adaptor.CreateMultiSigAddressOutput, error) {
 	//0 < m < n and publicKeys == n
-	if 0 == createMultiSigParams.M ||
-		createMultiSigParams.M > createMultiSigParams.N ||
-		0 == createMultiSigParams.N {
-		return nil, errors.New("Params error : 0 < m < n.")
+	if 0 >= input.SignCount {
+		return nil, fmt.Errorf("Params error :SignCount need be bigger than 0.")
 	}
 
 	//chainnet
 	realNet := GetNet(netID)
 
 	//convert PublicKeyString to AddressPubKey
-	pubkeys := make([]*btcutil.AddressPubKey, len(createMultiSigParams.PublicKeys))
-	for i, publicKeyString := range createMultiSigParams.PublicKeys {
-		publicKeyString = strings.TrimSpace(publicKeyString) //Trim whitespace
-		if len(publicKeyString) == 0 {
+	pubkeys := make([]*btcutil.AddressPubKey, 0, len(input.Keys))
+	for _, pubKeyBytes := range input.Keys {
+		if len(pubKeyBytes) == 0 {
 			continue
-		}
-		pubKeyBytes, err := hex.DecodeString(publicKeyString)
-		if err != nil {
-			return nil, err
 		}
 
 		addressPubKey, err := btcutil.NewAddressPubKey(pubKeyBytes, realNet)
 		if err != nil {
 			return nil, err
 		}
-		pubkeys[i] = addressPubKey
+		pubkeys = append(pubkeys, addressPubKey)
 	}
-	if len(createMultiSigParams.PublicKeys) != createMultiSigParams.N {
-		return nil, errors.New("Params error : PublicKeys small than n.")
+	if len(pubkeys) < input.SignCount {
+		return nil, fmt.Errorf("Params error : PublicKeys small than SignCount.")
 	}
 	//create multisig address
-	pkScript, err := txscript.MultiSigScript(pubkeys, createMultiSigParams.M)
+	pkScript, err := txscript.MultiSigScript(pubkeys, input.SignCount)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +91,9 @@ func CreateMultiSigAddress(createMultiSigParams *adaptor.CreateMultiSigParams, n
 		return nil, err
 	}
 	//result for return
-	var createMultiSigResult adaptor.CreateMultiSigResult
-	createMultiSigResult.P2ShAddress = scriptAddr.String()
-	createMultiSigResult.RedeemScript = hex.EncodeToString(pkScript)
+	var output adaptor.CreateMultiSigAddressOutput
+	output.Address = scriptAddr.String()
+	output.Extra = pkScript
 
-	for _, pubkey := range pubkeys {
-		createMultiSigResult.Addresses = append(createMultiSigResult.Addresses, pubkey.EncodeAddress())
-	}
-
-	return &createMultiSigResult, nil
+	return &output, nil
 }
