@@ -851,8 +851,7 @@ func mkGetScript(scripts map[string][]byte) txscript.ScriptDB {
 }
 
 //if complete, ruturn nil
-func checkScripts(tx *wire.MsgTx, idx int, inputAmt int64,
-	sigScript, scriptPkScript []byte) error {
+func checkScripts(tx *wire.MsgTx, idx int, inputAmt int64, scriptPkScript []byte) error {
 	vm, err := txscript.NewEngine(scriptPkScript, tx, idx,
 		txscript.ScriptBip16|txscript.ScriptVerifyDERSignatures,
 		nil, nil, inputAmt)
@@ -958,7 +957,7 @@ func MultisignOneByOne(prevTxHash string, index uint,
 	}
 
 	//
-	err = checkScripts(tx, 0, amount, sigScript, scriptPkScript)
+	err = checkScripts(tx, 0, amount,  scriptPkScript)
 	if err != nil {
 		complete = false
 	} else {
