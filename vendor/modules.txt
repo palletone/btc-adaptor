@@ -15,9 +15,11 @@ github.com/btcsuite/btcutil/bech32
 github.com/btcsuite/go-socks/socks
 # github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792
 github.com/btcsuite/websocket
-# github.com/davecgh/go-spew v0.0.0-20180830191138-d8f796af33cc
+# github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
-# github.com/palletone/adaptor v0.6.1-0.20190717052756-a631c9dd9d6a
+# github.com/golang/mock v1.3.1
+github.com/golang/mock/gomock
+# github.com/palletone/adaptor v1.0.0
 github.com/palletone/adaptor
-# golang.org/x/crypto v0.0.0-20181009213950-7c1a557ab941
+# golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 golang.org/x/crypto/ripemd160

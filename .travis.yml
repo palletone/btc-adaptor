@@ -13,7 +13,7 @@ matrix:
       env: GO111MODULE=on  
       script:
         - go get -u github.com/palletone/adaptor
-        - go test ./...
+        - go test -mod=vendor ./...
     - os: linux
       dist: xenial
       go: 1.12.x
