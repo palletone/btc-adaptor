@@ -1,13 +1,13 @@
-# github.com/btcsuite/btcd v0.0.0-20190410025418-9bfb2ca0346b
+# github.com/btcsuite/btcd v0.0.0-20190807005414-4063feeff79a
 github.com/btcsuite/btcd/btcec
-github.com/btcsuite/btcd/btcjson
 github.com/btcsuite/btcd/chaincfg
 github.com/btcsuite/btcd/chaincfg/chainhash
 github.com/btcsuite/btcd/rpcclient
 github.com/btcsuite/btcd/wire
+github.com/btcsuite/btcd/btcjson
 # github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
 github.com/btcsuite/btclog
-# github.com/btcsuite/btcutil v0.0.0-20190207003914-4c204d697803
+# github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 github.com/btcsuite/btcutil
 github.com/btcsuite/btcutil/base58
 github.com/btcsuite/btcutil/bech32
@@ -19,7 +19,7 @@ github.com/btcsuite/websocket
 github.com/davecgh/go-spew/spew
 # github.com/golang/mock v1.3.1
 github.com/golang/mock/gomock
-# github.com/palletone/adaptor v1.0.0
+# github.com/palletone/adaptor v1.0.1-0.20191204100220-740fe858e09b
 github.com/palletone/adaptor
-# golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+# golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
 golang.org/x/crypto/ripemd160
