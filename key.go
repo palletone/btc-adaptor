@@ -23,7 +23,6 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil"
 
-	//"github.com/btcsuite/btcd/txscript"
 	"github.com/palletone/btc-adaptor/txscript"
 
 	"github.com/palletone/adaptor"
@@ -34,7 +33,7 @@ func NewPrivateKey(netID int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%x\n", key.PubKey().SerializeCompressed())
+	//fmt.Printf("%x\n", key.PubKey().SerializeCompressed())
 
 	return key.Serialize(), nil
 }

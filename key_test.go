@@ -4,8 +4,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
-	//"github.com/btcsuite/btcutil"
-	//"github.com/palletone/adaptor"
+
+	"github.com/btcsuite/btcutil"
+
 	"github.com/palletone/adaptor"
 )
 
@@ -14,6 +15,9 @@ func TestNewPrivateKey(t *testing.T) {
 	//fmt.Printf("%x\n", wifKey.PrivKey.Serialize())
 	key, _ := NewPrivateKey(NETID_TEST)
 	fmt.Printf("%x\n", key)
+
+	wif, _ := btcutil.DecodeWIF("cQJB6w8SxVNoprVwp2xyxUFxvExMbpR2qj3banXYYXmhtTc1WxC8")
+	fmt.Printf("%x\n", wif.PrivKey.Serialize())
 }
 
 func TestGetPublicKey(t *testing.T) {

@@ -22,19 +22,24 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 
-	//"github.com/btcsuite/btcd/txscript"
-	"github.com/palletone/btc-adaptor/txscript"
-
 	"github.com/palletone/adaptor"
+	"github.com/palletone/btc-adaptor/txscript"
 )
+
+func HashMessage(input *adaptor.HashMessageInput) (*adaptor.HashMessageOutput, error) {
+	var output adaptor.HashMessageOutput
+	output.Hash = chainhash.DoubleHashB(input.Message)
+
+	return &output, nil
+}
 
 func SignMessage(input *adaptor.SignMessageInput) (*adaptor.SignMessageOutput, error) {
 	priKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), input.PrivateKey)
@@ -85,175 +90,7 @@ func VerifySignature(input *adaptor.VerifySignatureInput) (*adaptor.VerifySignat
 	return &output, nil
 }
 
-// decodeHexStr decodes the hex encoding of a string, possibly prepending a
-// leading '0' character if there is an odd number of bytes in the hex string.
-// This is to prevent an error for an invalid hex string when using an odd
-// number of bytes when calling hex.Decode.
-func decodeHexStr(hexStr string) ([]byte, error) {
-	if len(hexStr)%2 != 0 {
-		hexStr = "0" + hexStr
-	}
-	decoded, err := hex.DecodeString(hexStr)
-	if err != nil {
-		return nil, &btcjson.RPCError{
-			Code:    btcjson.ErrRPCDecodeHexString,
-			Message: "Hex string decode failed: " + err.Error(),
-		}
-	}
-	return decoded, nil
-}
-
-type RawTxInput struct {
-	Txid         string `json:"txid"`
-	Vout         uint32 `json:"vout"`
-	ScriptPubKey string `json:"scriptPubKey"`
-}
-type SignRawTransactionCmd struct {
-	RawTx     string
-	Inputs    *[]RawTxInput
-	RedeemHex []string
-	PrivKeys  *[]string
-	Flags     *string `jsonrpcdefault:"\"ALL\""`
-}
-
-// signRawTransaction handles the signrawtransaction command.
-func signRawTransactionCmd(cmd *SignRawTransactionCmd, chainParams *chaincfg.Params) (interface{}, error) {
-	serializedTx, err := decodeHexStr(cmd.RawTx)
-	if err != nil {
-		return nil, err
-	}
-	var tx wire.MsgTx
-	err = tx.Deserialize(bytes.NewBuffer(serializedTx))
-	if err != nil {
-		return nil, errors.New("TX decode failed")
-	}
-
-	var hashType txscript.SigHashType
-	switch *cmd.Flags {
-	case "ALL":
-		hashType = txscript.SigHashAll
-	case "NONE":
-		hashType = txscript.SigHashNone
-	case "SINGLE":
-		hashType = txscript.SigHashSingle
-	case "ALL|ANYONECANPAY":
-		hashType = txscript.SigHashAll | txscript.SigHashAnyOneCanPay
-	case "NONE|ANYONECANPAY":
-		hashType = txscript.SigHashNone | txscript.SigHashAnyOneCanPay
-	case "SINGLE|ANYONECANPAY":
-		hashType = txscript.SigHashSingle | txscript.SigHashAnyOneCanPay
-	default:
-		return nil, errors.New("Invalid sighash parameter")
-	}
-
-	// TODO: really we probably should look these up with btcd anyway to
-	// make sure that they match the blockchain if present.
-	inputs := make(map[wire.OutPoint][]byte)
-	scripts := make(map[string][]byte)
-	var cmdInputs []RawTxInput
-	if cmd.Inputs != nil {
-		cmdInputs = *cmd.Inputs
-	}
-	for _, inputOne := range cmdInputs {
-		inputHash, err := chainhash.NewHashFromStr(inputOne.Txid)
-		if err != nil {
-			return nil, err
-		}
-
-		if "" == inputOne.ScriptPubKey {
-			return nil, errors.New("ScriptPubKey is empty")
-		}
-		script, err := decodeHexStr(inputOne.ScriptPubKey)
-		if err != nil {
-			return nil, err
-		}
-		inputs[wire.OutPoint{Hash: *inputHash, Index: inputOne.Vout}] = script
-
-	}
-	//
-	for i := range cmd.RedeemHex {
-		if "" == cmd.RedeemHex[i] {
-			continue
-		}
-		redeemScript, err := decodeHexStr(cmd.RedeemHex[i])
-		if err != nil {
-			return nil, err
-		}
-
-		addr, err := btcutil.NewAddressScriptHash(redeemScript,
-			chainParams)
-		if err != nil {
-			return nil, err
-		}
-		scripts[addr.String()] = redeemScript
-	}
-
-	// Parse list of private keys, if present. If there are any keys here
-	// they are the keys that we may use for signing. If empty we will
-	// use any keys known to us already.
-	var keys map[string]*btcutil.WIF
-	if cmd.PrivKeys != nil {
-		keys = make(map[string]*btcutil.WIF)
-
-		for _, key := range *cmd.PrivKeys {
-			wif, err := btcutil.DecodeWIF(key)
-			if err != nil {
-				return nil, err
-			}
-
-			if !wif.IsForNet(chainParams) {
-				s := "key network doesn't match wallet's"
-				return nil, errors.New(s)
-			}
-
-			addr, err := btcutil.NewAddressPubKey(wif.SerializePubKey(),
-				chainParams)
-			if err != nil {
-				return nil, err
-			}
-			keys[addr.EncodeAddress()] = wif
-		}
-	}
-
-	// All args collected. Now we can sign all the inputs that we can.
-	// `complete' denotes that we successfully signed all outputs and that
-	// all scripts will run to completion. This is returned as part of the
-	// reply.
-	signErrs, err := SignTransactionReal(&tx, hashType, inputs, keys, scripts, chainParams)
-	if err != nil {
-		return nil, err
-	}
-
-	var buf bytes.Buffer
-	buf.Grow(tx.SerializeSize())
-
-	// All returned errors (not OOM, which panics) encounted during
-	// bytes.Buffer writes are unexpected.
-	if err = tx.Serialize(&buf); err != nil {
-		panic(err)
-	}
-
-	signErrors := make([]btcjson.SignRawTransactionError, 0, len(signErrs))
-	for _, e := range signErrs {
-		input := tx.TxIn[e.InputIndex]
-		signErrors = append(signErrors, btcjson.SignRawTransactionError{
-			TxID:      input.PreviousOutPoint.Hash.String(),
-			Vout:      input.PreviousOutPoint.Index,
-			ScriptSig: hex.EncodeToString(input.SignatureScript),
-			Sequence:  input.Sequence,
-			Error:     e.Error.Error(),
-		})
-	}
-
-	return btcjson.SignRawTransactionResult{
-		Hex:      hex.EncodeToString(buf.Bytes()),
-		Complete: len(signErrors) == 0,
-		Errors:   signErrors,
-	}, nil
-}
-
-// SignatureError records the underlying error when validating a transaction
-// input signature.
+// SignatureError records the underlying error when validating a transaction input signature.
 type SignatureError struct {
 	InputIndex uint32
 	Error      error
@@ -353,109 +190,112 @@ func SignTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
 	return signErrors, err
 }
 
-//func SignTransaction(signTransactionParams *adaptor.SignTransactionParams, netID int) (*adaptor.SignTransactionResult, error) {
-//	//check empty string
-//	if "" == signTransactionParams.TransactionHex {
-//		return nil, errors.New("Params error : NO TransactionHex.")
-//	}
-//
-//	//chainnet
-//	realNet := GetNet(netID)
-//
-//	var err error
-//	//sign the UTXO hash, must know RedeemHex which contains in RawTxInput
-//	var rawInputs []RawTxInput
-//	for {
-//		//decode Transaction hexString to bytes
-//		rawTXBytes, err1 := hex.DecodeString(signTransactionParams.TransactionHex)
-//		if err1 != nil {
-//			err = err1
-//			break
-//		}
-//		//deserialize to MsgTx
-//		var tx wire.MsgTx
-//		err = tx.Deserialize(bytes.NewReader(rawTXBytes))
-//		if err != nil {
-//			break
-//		}
-//
-//		payScript := ""
-//		if "" != signTransactionParams.FromAddr {
-//			address, err := btcutil.DecodeAddress(signTransactionParams.FromAddr, realNet)
-//			if err != nil {
-//				break
-//			}
-//			// Create a public key script that pays to the address.
-//			script, err := txscript.PayToAddrScript(address)
-//			if err != nil {
-//				break
-//			}
-//			payScript = hex.EncodeToString(script)
-//		} //todo redeem
-//		//multisig transaction need redeem for sign
-//		for i, txinOne := range tx.TxIn {
-//			if "" == signTransactionParams.FromAddr {
-//				if i >= len(signTransactionParams.InputRedeemIndex) {
-//					err = errors.New("RedeemIndex not enough")
-//					break
-//				}
-//				//decode redeem's hexString to bytes
-//				if signTransactionParams.InputRedeemIndex[i] >= len(signTransactionParams.RedeemHex) {
-//					err = errors.New("RedeemIndex invalid")
-//					break
-//				}
-//				redeem, err := hex.DecodeString(signTransactionParams.RedeemHex[signTransactionParams.InputRedeemIndex[i]])
-//				if err != nil {
-//					break
-//				}
-//				//get multisig payScript
-//				scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
-//				if err != nil {
-//					break
-//				}
-//				scriptPkScript, err := txscript.PayToAddrScript(scriptAddr)
-//				if err != nil {
-//					break
-//				}
-//				payScript = hex.EncodeToString(scriptPkScript)
-//			}
-//			rawInput := RawTxInput{
-//				txinOne.PreviousOutPoint.Hash.String(), //txid
-//				txinOne.PreviousOutPoint.Index,         //outindex
-//				payScript}                              //multisig pay script
-//			rawInputs = append(rawInputs, rawInput)
-//		}
-//
-//		break
-//	}
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//
-//	var cmd SignRawTransactionCmd
-//	cmd.RawTx = signTransactionParams.TransactionHex
-//	cmd.Inputs = &rawInputs
-//	cmd.RedeemHex = append(cmd.RedeemHex, signTransactionParams.RedeemHex...)
-//	cmd.PrivKeys = &signTransactionParams.Privkeys
-//	flags := "ALL"
-//	cmd.Flags = &flags
-//
-//	//if complete ruturn true
-//	result, err := signRawTransactionCmd(&cmd, realNet)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//result for return
-//	signRawResult := result.(btcjson.SignRawTransactionResult)
-//	var signTransactionResult adaptor.SignTransactionResult
-//	signTransactionResult.TransactionHex = signRawResult.Hex
-//	signTransactionResult.Complete = signRawResult.Complete
-//
-//	return &signTransactionResult, nil
-//}
-//
+func SignTransaction(input *adaptor.SignTransactionInput, netID int) (*adaptor.SignTransactionOutput, error) {
+	//check empty
+	if 0 == len(input.Transaction) {
+		return nil, errors.New("the Transaction is empty")
+	}
+	if 0 == len(input.PrivateKey) {
+		return nil, errors.New("the PrivateKey is empty")
+	}
+	extraLen := len(input.Extra)
+	if 0 == extraLen {
+		return nil, errors.New("the Extra is empty, must be oneSigAddr or multiSigRedeem")
+	}
+
+	//chainnet
+	realNet := GetNet(netID)
+
+	keys := map[string]*btcutil.WIF{}
+	priKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), input.PrivateKey)
+	wif, err := btcutil.NewWIF(priKey, realNet, true)
+	if err != nil {
+		return nil, fmt.Errorf("NewWIF failed : %s", err.Error())
+	}
+	addr, err := btcutil.NewAddressPubKey(wif.SerializePubKey(), realNet)
+	if err != nil {
+		return nil, err
+	}
+	addrStr := addr.EncodeAddress()
+	keys[addrStr] = wif
+
+	//deserialize to MsgTx
+	var tx wire.MsgTx
+	err = tx.Deserialize(bytes.NewReader(input.Transaction))
+	if err != nil {
+		return nil, fmt.Errorf("Deserialize tx failed : %s", err.Error())
+	}
+
+	//sign the UTXO hash, must know RedeemHex which contains in RawTxInput
+	isRedeem := false
+	if extraLen > 35 {
+		isRedeem = true
+	}
+	scripts := make(map[string][]byte)
+	var scriptPkScript []byte
+	if isRedeem {
+		redeem, err := hex.DecodeString(string(input.Extra))
+		if err != nil {
+			return nil, fmt.Errorf("hex.DecodeString redeem in the Extra failed : %s", err.Error())
+		}
+		//get multisig payScript
+		scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
+		if err != nil {
+			return nil, fmt.Errorf("NewAddressScriptHash redeem failed : %s", err.Error())
+		}
+		scripts[scriptAddr.String()] = redeem
+		scriptPkScript, err = txscript.PayToAddrScript(scriptAddr)
+		if err != nil {
+			return nil, fmt.Errorf("PayToAddrScript redeem failed : %s", err.Error())
+		}
+	} else {
+		if addrStr != string(input.Extra) {
+			return nil, fmt.Errorf("address in the Extra is not match with the PrivateKey")
+		}
+		address, err := btcutil.DecodeAddress(string(input.Extra), realNet)
+		if err != nil {
+			return nil, fmt.Errorf("DecodeAddress oneAddr failed : %s", err.Error())
+		}
+		// Create a public key script that pays to the address.
+		scriptPkScript, err = txscript.PayToAddrScript(address)
+		if err != nil {
+			return nil, fmt.Errorf("PayToAddrScript oneAddr failed : %s", err.Error())
+		}
+	}
+
+	inputs := make(map[wire.OutPoint][]byte)
+	for _, txinOne := range tx.TxIn {
+		inputs[wire.OutPoint{Hash: txinOne.PreviousOutPoint.Hash, Index: txinOne.PreviousOutPoint.Index}] = scriptPkScript
+	}
+
+	signErrs, err := SignTransactionReal(&tx, txscript.SigHashAll, inputs, keys, scripts, realNet)
+	if err != nil {
+		return nil, err
+	}
+	if len(signErrs) != 0 {
+		return nil, fmt.Errorf("SignTransactionReal failed : not Complete")
+	}
+
+	var buf bytes.Buffer
+	buf.Grow(tx.SerializeSize())
+	if err = tx.Serialize(&buf); err != nil {
+		return nil, err
+	}
+
+	var signatures []byte
+	for _, txinOne := range tx.TxIn {
+		fmt.Printf("%x\n", txinOne.SignatureScript)
+		signatures = append(signatures, txinOne.SignatureScript...)
+	}
+
+	var output adaptor.SignTransactionOutput
+	output.Signature = signatures
+	output.SignedTx = buf.Bytes()
+	//output.Extra
+
+	return &output, nil
+}
+
 //type SendTransactionHttppResponse struct {
 //	//Status string `json:"status"`
 //	Data struct {
@@ -501,315 +341,135 @@ func SignTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
 //
 //	return &sendTransactionResult, nil
 //}
-//
-//func SendTransaction(params *adaptor.SendTransactionParams, rpcParams *RPCParams) (*adaptor.SendTransactionResult, error) {
-//	//check empty string
-//	if "" == params.TransactionHex {
-//		return nil, errors.New("Params error : NO TransactionHex.")
-//	}
-//
-//	//decode Transaction hexString to bytes
-//	rawTXBytes, err := hex.DecodeString(params.TransactionHex)
-//	if err != nil {
-//		return nil, err
-//	}
-//	//deserialize to MsgTx
-//	var tx wire.MsgTx
-//	err = tx.Deserialize(bytes.NewReader(rawTXBytes))
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//get rpc client
-//	client, err := GetClient(rpcParams)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer client.Shutdown()
-//
-//	//send to network
-//	hashTX, err := client.SendRawTransaction(&tx, false)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//result for return
-//	var sendTransactionResult adaptor.SendTransactionResult
-//	sendTransactionResult.TransactionHah = hashTX.String()
-//
-//	return &sendTransactionResult, nil
-//}
-//
-//func SignTxSend(signTxSendParams *adaptor.SignTxSendParams, rpcParams *RPCParams, netID int) (*adaptor.SignTxSendResult, error) {
-//	//check empty string
-//	if "" == signTxSendParams.TransactionHex {
-//		return nil, errors.New("Params error : NO TransactionHex.")
-//	}
-//
-//	//chainnet
-//	realNet := GetNet(netID)
-//
-//	var err error
-//	//sign the UTXO hash, must know RedeemHex which contains in RawTxInput
-//	var rawInputs []RawTxInput
-//	for {
-//		//decode Transaction hexString to bytes
-//		rawTXBytes, err := hex.DecodeString(signTxSendParams.TransactionHex)
-//		if err != nil {
-//			break
-//		}
-//		//deserialize to MsgTx
-//		var tx wire.MsgTx
-//		err = tx.Deserialize(bytes.NewReader(rawTXBytes))
-//		if err != nil {
-//			break
-//		}
-//
-//		payScript := ""
-//		if "" != signTxSendParams.FromAddr {
-//			address, err := btcutil.DecodeAddress(signTxSendParams.FromAddr, realNet)
-//			if err != nil {
-//				break
-//			}
-//			// Create a public key script that pays to the address.
-//			script, err := txscript.PayToAddrScript(address)
-//			if err != nil {
-//				break
-//			}
-//			payScript = hex.EncodeToString(script)
-//		} //todo redeem
-//		//multisig transaction need redeem for sign
-//		for i, txinOne := range tx.TxIn {
-//			if "" == signTxSendParams.FromAddr {
-//				if i >= len(signTxSendParams.InputRedeemIndex) {
-//					err = errors.New("RedeemIndex not enough")
-//					break
-//				}
-//				//decode redeem's hexString to bytes
-//				if signTxSendParams.InputRedeemIndex[i] >= len(signTxSendParams.RedeemHex) {
-//					err = errors.New("RedeemIndex invalid")
-//					break
-//				}
-//				redeem, err := hex.DecodeString(signTxSendParams.RedeemHex[signTxSendParams.InputRedeemIndex[i]])
-//				if err != nil {
-//					break
-//				}
-//				//get multisig payScript
-//				scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
-//				if err != nil {
-//					break
-//				}
-//				scriptPkScript, err := txscript.PayToAddrScript(scriptAddr)
-//				if err != nil {
-//					break
-//				}
-//				payScript = hex.EncodeToString(scriptPkScript)
-//			}
-//			rawInput := RawTxInput{
-//				txinOne.PreviousOutPoint.Hash.String(), //txid
-//				txinOne.PreviousOutPoint.Index,         //outindex
-//				payScript}                              //multisig pay script
-//			rawInputs = append(rawInputs, rawInput)
-//		}
-//
-//		break
-//	}
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//
-//	var cmd SignRawTransactionCmd
-//	cmd.RawTx = signTxSendParams.TransactionHex
-//	cmd.Inputs = &rawInputs
-//	cmd.RedeemHex = append(cmd.RedeemHex, signTxSendParams.RedeemHex...)
-//	cmd.PrivKeys = &signTxSendParams.Privkeys
-//	flags := "ALL"
-//	cmd.Flags = &flags
-//
-//	//if complete ruturn true
-//	result, err := signRawTransactionCmd(&cmd, realNet)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//result for return
-//	signRawResult := result.(btcjson.SignRawTransactionResult)
-//	var signTxSendResult adaptor.SignTxSendResult
-//	if signRawResult.Complete {
-//		//get rpc client
-//		client, err := GetClient(rpcParams)
-//		if err != nil {
-//			return nil, err
-//		}
-//		defer client.Shutdown()
-//
-//		//decode Transaction hexString to bytes
-//		rawTXBytes, err := hex.DecodeString(signRawResult.Hex)
-//		if err != nil {
-//			return nil, err
-//		}
-//		//deserialize to MsgTx
-//		var resultTX wire.MsgTx
-//		err = resultTX.Deserialize(bytes.NewReader(rawTXBytes))
-//		if err != nil {
-//			return nil, err
-//		}
-//
-//		//send to network
-//		hashTX, err := client.SendRawTransaction(&resultTX, false)
-//		if err != nil {
-//			return nil, err
-//		}
-//		signTxSendResult.TransactionHah = hashTX.String()
-//
-//		//SerializeSize transaction to bytes
-//		bufTX := bytes.NewBuffer(make([]byte, 0, resultTX.SerializeSize()))
-//		if err := resultTX.Serialize(bufTX); err != nil {
-//			return nil, err
-//		}
-//
-//		signTxSendResult.TransactionHex = hex.EncodeToString(bufTX.Bytes())
-//		signTxSendResult.Complete = true
-//	}
-//
-//	return &signTxSendResult, nil
-//}
-//
-//func MergeTransaction(mergeTransactionParams *adaptor.MergeTransactionParams, netID int) (*adaptor.MergeTransactionResult, error) {
-//	//check empty string
-//	if 0 == len(mergeTransactionParams.MergeTransactionHexs) {
-//		return nil, errors.New("Params error : NO Merge TransactionHexs.")
-//	}
-//
-//	//chainnet
-//	realNet := GetNet(netID)
-//
-//	//deal user tx
-//	var tx wire.MsgTx
-//	var err error
-//	var redeem []byte
-//	var addresses []btcutil.Address
-//	var nrequired int
-//	var scriptPkScript []byte
-//	for {
-//		if 0 == len(mergeTransactionParams.RedeemHex) {
-//			err = errors.New("RedeemHex's length is 0")
-//			break
-//		}
-//
-//		//decode Transaction hexString to bytes
-//		rawTXBytes, err := hex.DecodeString(mergeTransactionParams.UserTransactionHex)
-//		if err != nil {
-//			break
-//		}
-//		//deserialize to MsgTx
-//		err = tx.Deserialize(bytes.NewReader(rawTXBytes))
-//		if err != nil {
-//			break
-//		}
-//
-//		break
-//	}
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//deal merge txs
-//	var txs []wire.MsgTx
-//	for i := range mergeTransactionParams.MergeTransactionHexs {
-//		var tx wire.MsgTx
-//		//decode Transaction hexString to bytes
-//		rawTXBytes, err := hex.DecodeString(mergeTransactionParams.MergeTransactionHexs[i])
-//		if err != nil {
-//			continue
-//		}
-//		//deserialize to MsgTx
-//		err = tx.Deserialize(bytes.NewReader(rawTXBytes))
-//		if err != nil {
-//			continue
-//		}
-//		txs = append(txs, tx)
-//	}
-//	if len(txs) == 0 {
-//		return nil, errors.New("Params error : All Merge TransactionHexs is invalid.")
-//	}
-//
-//	//merge tx
-//	complete := true
-//	for i := range tx.TxIn {
-//		if i >= len(mergeTransactionParams.InputRedeemIndex) {
-//			err = errors.New("RedeemIndex not enough")
-//			break
-//		}
-//		//decode redeem's hexString to bytes
-//		if mergeTransactionParams.InputRedeemIndex[i] >= len(mergeTransactionParams.RedeemHex) {
-//			err = errors.New("RedeemIndex invalid")
-//			break
-//		}
-//		//decode redeem's hexString to bytes
-//		redeem, err = hex.DecodeString(mergeTransactionParams.RedeemHex[mergeTransactionParams.InputRedeemIndex[i]])
-//		if err != nil {
-//			break
-//		}
-//
-//		//get addresses an n of multisig redeem
-//		_, addresses, nrequired, err = txscript.ExtractPkScriptAddrs(redeem,
-//			realNet)
-//		if err != nil {
-//			break
-//		}
-//
-//		//get multisig payScript
-//		scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
-//		if err != nil {
-//			break
-//		}
-//		scriptPkScript, err = txscript.PayToAddrScript(scriptAddr)
-//		if err != nil {
-//			break
-//		}
-//
-//		//
-//		sigScripts := make([][]byte, 0)
-//		for j := range txs {
-//			if i < len(txs[j].TxIn) {
-//				sigScripts = append(sigScripts, txs[j].TxIn[i].SignatureScript)
-//			}
-//		}
-//
-//		//
-//		script, doneSigs := txscript.MergeMultiSigScript(&tx, i, addresses, nrequired, redeem, sigScripts)
-//		if doneSigs > 0 {
-//			tx.TxIn[i].SignatureScript = script
-//		}
-//
-//		// Either it was already signed or we just signed it.
-//		// Find out if it is completely satisfied or still needs more.
-//		vm, err := txscript.NewEngine(scriptPkScript, &tx, i,
-//			txscript.StandardVerifyFlags, nil, nil, 0)
-//		if err == nil {
-//			err = vm.Execute()
-//		}
-//		if err != nil {
-//			complete = false
-//		}
-//	}
-//
-//	//SerializeSize transaction to bytes
-//	buf := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
-//	if err := tx.Serialize(buf); err != nil {
-//		return nil, err
-//	}
-//	//result for return
-//	var mergeTransactionResult adaptor.MergeTransactionResult
-//	mergeTransactionResult.TransactionHex = hex.EncodeToString(buf.Bytes())
-//	mergeTransactionResult.TransactionHash = tx.TxHash().String()
-//	mergeTransactionResult.Complete = complete
-//
-//	return &mergeTransactionResult, nil
-//}
-//
+
+func SendTransaction(input *adaptor.SendTransactionInput, rpcParams *RPCParams) (*adaptor.SendTransactionOutput, error) {
+	//check empty string
+	if 0 == len(input.Transaction) {
+		return nil, errors.New("the Transaction is empty")
+	}
+
+	//deserialize to MsgTx
+	var tx wire.MsgTx
+	err := tx.Deserialize(bytes.NewReader(input.Transaction))
+	if err != nil {
+		return nil, fmt.Errorf("Deserialize failed : %s", err.Error())
+	}
+
+	//get rpc client
+	client, err := GetClient(rpcParams)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Shutdown()
+
+	//send to network
+	hashTX, err := client.SendRawTransaction(&tx, false) //BTC API
+	if err != nil {
+		return nil, fmt.Errorf("SendRawTransaction failed : %s", err.Error())
+	}
+
+	//result for return
+	var ouput adaptor.SendTransactionOutput
+	txID, _ := hex.DecodeString(hashTX.String())
+	ouput.TxID = txID
+
+	return &ouput, nil
+}
+
+func BindTxAndSignature(input *adaptor.BindTxAndSignatureInput, netID int) (*adaptor.BindTxAndSignatureOutput, error) {
+	//check empty string
+	if 0 == len(input.SignedTxs) {
+		return nil, errors.New("Params error : NO Merge TransactionHexs.")
+	}
+	if 0 == len(input.Extra) {
+		return nil, errors.New("the Extra is empty, must be multiSigRedeem")
+	}
+
+	//chainnet
+	realNet := GetNet(netID)
+
+	//decode redeem's hexString to bytes
+	redeem, err := hex.DecodeString(string(input.Extra))
+	if err != nil {
+		return nil, fmt.Errorf("hex.DecodeString redeem in the Extra failed : %s", err.Error())
+	}
+	//get addresses an n of multisig redeem
+	_, addresses, nrequired, err := txscript.ExtractPkScriptAddrs(redeem, realNet)
+	if err != nil {
+		return nil, fmt.Errorf("ExtractPkScriptAddrs redeem failed : %s", err.Error())
+	}
+	//get multisig payScript
+	scriptAddr, err := btcutil.NewAddressScriptHash(redeem, realNet)
+	if err != nil {
+		return nil, fmt.Errorf("NewAddressScriptHash redeem failed : %s", err.Error())
+	}
+	scriptPkScript, err := txscript.PayToAddrScript(scriptAddr)
+	if err != nil {
+		return nil, fmt.Errorf("PayToAddrScript redeem failed : %s", err.Error())
+	}
+
+	//deserialize to MsgTx
+	var tx wire.MsgTx
+	err = tx.Deserialize(bytes.NewReader(input.Transaction))
+	if err != nil {
+		return nil, fmt.Errorf("Deserialize tx failed : %s", err.Error())
+	}
+
+	//deal merge txs
+	var txs []wire.MsgTx
+	for i := range input.SignedTxs {
+		var tx wire.MsgTx
+		//deserialize to MsgTx
+		err = tx.Deserialize(bytes.NewReader(input.SignedTxs[i]))
+		if err != nil {
+			continue
+		}
+		txs = append(txs, tx)
+	}
+	if len(txs) == 0 {
+		return nil, errors.New("Params error : All Merge TransactionHexs is invalid.")
+	}
+
+	//merge txs
+	for i := range tx.TxIn {
+		//
+		sigScripts := make([][]byte, 0)
+		for j := range txs {
+			if i < len(txs[j].TxIn) {
+				sigScripts = append(sigScripts, txs[j].TxIn[i].SignatureScript)
+			}
+		}
+
+		//
+		script, doneSigs := txscript.MergeMultiSigScript(&tx, i, addresses, nrequired, redeem, sigScripts)
+		if doneSigs > 0 {
+			tx.TxIn[i].SignatureScript = script
+		}
+
+		// Either it was already signed or we just signed it.
+		// Find out if it is completely satisfied or still needs more.
+		vm, err := txscript.NewEngine(scriptPkScript, &tx, i,
+			txscript.StandardVerifyFlags, nil, nil, 0)
+		if err == nil {
+			err = vm.Execute()
+		}
+		if err != nil {
+			return nil, fmt.Errorf("SignTransactionReal failed : not Complete")
+		}
+	}
+
+	//SerializeSize transaction to bytes
+	buf := bytes.NewBuffer(make([]byte, 0, tx.SerializeSize()))
+	if err := tx.Serialize(buf); err != nil {
+		return nil, fmt.Errorf("Serialize tx failed : %s", err.Error())
+	}
+	//result for return
+	var output adaptor.BindTxAndSignatureOutput
+	output.SignedTx = buf.Bytes()
+	//output.Extra
+
+	return &output, nil
+}
 
 //==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ===
 
@@ -851,7 +511,8 @@ func mkGetScript(scripts map[string][]byte) txscript.ScriptDB {
 }
 
 //if complete, ruturn nil
-func checkScripts(tx *wire.MsgTx, idx int, inputAmt int64, scriptPkScript []byte) error {
+func checkScripts(tx *wire.MsgTx, idx int, inputAmt int64,
+	sigScript, scriptPkScript []byte) error {
 	vm, err := txscript.NewEngine(scriptPkScript, tx, idx,
 		txscript.ScriptBip16|txscript.ScriptVerifyDERSignatures,
 		nil, nil, inputAmt)
@@ -957,7 +618,7 @@ func MultisignOneByOne(prevTxHash string, index uint,
 	}
 
 	//
-	err = checkScripts(tx, 0, amount,  scriptPkScript)
+	err = checkScripts(tx, 0, amount, sigScript, scriptPkScript)
 	if err != nil {
 		complete = false
 	} else {

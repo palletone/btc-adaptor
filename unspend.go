@@ -18,12 +18,18 @@
 package btcadaptor
 
 import (
-	"io/ioutil"
-	"path/filepath"
-
+	"encoding/hex"
+	"fmt"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btcutil"
+	"io/ioutil"
+	"math/big"
+	"path/filepath"
+	"strings"
+
+	"github.com/palletone/adaptor"
 )
 
 //==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ==== ===
@@ -87,202 +93,83 @@ func GetNet(netID int) *chaincfg.Params {
 	return realNet
 }
 
-//func GetUTXO(params *adaptor.GetUTXOParams, rpcParams *RPCParams, netID int) (*adaptor.GetUTXOResult, error) {
-//	//chainnet
-//	realNet := GetNet(netID)
-//
-//	//convert address from string
-//	address := strings.TrimSpace(params.Address) //Trim whitespace
-//	if len(address) == 0 {
-//		return nil, errors.New("Params error : NO addresss.")
-//	}
-//	addr, err := btcutil.DecodeAddress(address, realNet)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//get rpc client
-//	client, err := GetClient(rpcParams)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer client.Shutdown()
-//
-//	//get all raw transaction
-//	var strs []string
-//	account := addr.String()
-//	count := 999999
-//	msgTxs, err := client.SearchRawTransactionsVerbose(addr, 0, count, true, false, strs)
-//	if err != nil {
-//		return nil, errors.New("Search : " + err.Error())
-//	}
-//
-//	//save utxo to map, check next one transanction is spend or not
-//	outputIndex := map[string]float64{}
-//	sep := "-"
-//
-//	//the result for return
-//	for _, msgTx := range msgTxs {
-//		if int(msgTx.Confirmations) < params.Minconf {
-//			continue
-//		}
-//		//transaction inputs
-//		for _, in := range msgTx.Vin {
-//			//check is spend or not
-//			_, exist := outputIndex[in.Txid+sep+strconv.Itoa(int(in.Vout))]
-//			if exist { //spend
-//				delete(outputIndex, in.Txid+sep+strconv.Itoa(int(in.Vout)))
-//			}
-//		}
-//
-//		//transaction outputs
-//		for _, out := range msgTx.Vout {
-//			if out.ScriptPubKey.Addresses[0] == account {
-//				outputIndex[msgTx.Txid+sep+strconv.Itoa(int(out.N))] = out.Value
-//			}
-//		}
-//	}
-//
-//	//
-//	var result adaptor.GetUTXOResult
-//	for oneOut, value := range outputIndex {
-//		keys := strings.Split(oneOut, sep)
-//		if len(keys) == 2 {
-//			vout, _ := strconv.Atoi(keys[1])
-//			oneUTXO := adaptor.UTXO{keys[0], uint32(vout), value, 0}
-//			result.UTXOs = append(result.UTXOs, oneUTXO)
-//		} else {
-//			return nil, errors.New("Process fatal error : key invalid.")
-//		}
-//
-//	}
-//
-//	return &result, nil
-//}
-//
-//type GetUTXOHttpResponse struct {
-//	//Status string `json:"status"`
-//	Data struct {
-//		//Network string `json:"network"`
-//		//Address string `json:"address"`
-//		Txs []struct {
-//			Txid     string `json:"txid"`
-//			OutputNo int    `json:"output_no"`
-//			//ScriptAsm     string `json:"script_asm"`
-//			//ScriptHex     string `json:"script_hex"`
-//			Value         string `json:"value"`
-//			Confirmations int    `json:"confirmations"`
-//			//Time          int    `json:"time"`
-//		} `json:"txs"`
-//	} `json:"data"`
-//}
-//
-////only return 100 default, need use params after_txid
-//func GetUTXOHttp(params *adaptor.GetUTXOHttpParams, netID int) (*adaptor.GetUTXOHttpResult, error) {
-//	if "" == params.Address {
-//		return nil, errors.New("Address is empty")
-//	}
-//	var request string //todo: use after_txid
-//	if netID == NETID_MAIN {
-//		request = base + "get_tx_unspent/BTC/"
-//	} else {
-//		request = base + "get_tx_unspent/BTCTEST/"
-//	}
-//
-//	strRespose, err, _ := httpGet(request + params.Address)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	var msgTxs GetUTXOHttpResponse
-//	err = json.Unmarshal([]byte(strRespose), &msgTxs)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//
-//	var result adaptor.GetUTXOHttpResult
-//	for _, tx := range msgTxs.Data.Txs {
-//		value, _ := strconv.ParseFloat(tx.Value, 64)
-//		oneUTXO := adaptor.UTXO{tx.Txid, uint32(tx.OutputNo), value, uint64(tx.Confirmations)}
-//		result.UTXOs = append(result.UTXOs, oneUTXO)
-//	}
-//	return &result, nil
-//}
-//
-//func GetBalance(getBalanceParams *adaptor.GetBalanceParams, rpcParams *RPCParams, netID int) (*adaptor.GetBalanceResult, error) {
-//	//chainnet
-//	realNet := GetNet(netID)
-//
-//	//convert address from string
-//	var addrs []btcutil.Address
-//	if len(getBalanceParams.Address) != 0 {
-//		addr, err := btcutil.DecodeAddress(getBalanceParams.Address, realNet)
-//		if err != nil {
-//			return nil, err
-//		}
-//		addrs = append(addrs, addr)
-//	}
-//	if len(addrs) != 1 {
-//		return nil, errors.New("Params error : Must one address.")
-//	}
-//
-//	//get rpc client
-//	client, err := GetClient(rpcParams)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer client.Shutdown()
-//
-//	//get all raw transaction
-//	var strs []string
-//	account := addrs[0].String()
-//	count := 999999
-//	msgTxs, err := client.SearchRawTransactionsVerbose(addrs[0], 0, count, true, false, strs)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//save utxo to map, check next one transanction is spend or not
-//	outputIndex := map[string]float64{}
-//	sep := "-"
-//
-//	//the result for return
-//	for _, msgTx := range msgTxs {
-//		if int(msgTx.Confirmations) < getBalanceParams.Minconf {
-//			continue
-//		}
-//		//transaction inputs
-//		for _, in := range msgTx.Vin {
-//			//check is spend or not
-//			_, exist := outputIndex[in.Txid+sep+
-//				strconv.Itoa(int(in.Vout))]
-//			if exist { //spend
-//				delete(outputIndex, in.Txid+sep+
-//					strconv.Itoa(int(in.Vout)))
-//			}
-//		}
-//
-//		//transaction outputs
-//		for _, out := range msgTx.Vout {
-//			if out.ScriptPubKey.Addresses[0] == account {
-//				outputIndex[msgTx.Txid+sep+strconv.Itoa(int(out.N))] = out.Value
-//			}
-//		}
-//	}
-//
-//	//compute total Amount for balance
-//	var result adaptor.GetBalanceResult
-//	var allAmount float64
-//	for _, value := range outputIndex {
-//		allAmount += value
-//	}
-//
-//	//
-//	result.Value = allAmount
-//
-//	return &result, nil
-//}
+func getAllUnspend(client *rpcclient.Client, addr btcutil.Address) (map[string]float64, error) {
+	//get all raw transaction
+	count := 999999
+	msgTxs, err := client.SearchRawTransactionsVerbose(addr, 0, count, true, false, []string{}) //BTCD API
+	if err != nil {
+		return map[string]float64{}, fmt.Errorf("SearchRawTransactionsVerbose failed %s", err.Error())
+	}
+
+	addrStr := addr.String()
+	//save utxo to map, check next one transanction is spend or not
+	outputIndex := map[string]float64{}
+	//the result for return
+	for _, msgTx := range msgTxs {
+		if int(msgTx.Confirmations) < 6 {
+			continue
+		}
+		//transaction inputs
+		for _, in := range msgTx.Vin {
+			//check is spend or not
+			idIndex := in.Txid + fmt.Sprintf("%02x", in.Vout)
+			_, exist := outputIndex[idIndex]
+			if exist { //spend
+				delete(outputIndex, idIndex)
+			}
+		}
+
+		//transaction outputs
+		for _, out := range msgTx.Vout {
+			if out.ScriptPubKey.Addresses[0] == addrStr {
+				outputIndex[msgTx.Txid+fmt.Sprintf("%02x", out.N)] = out.Value
+			}
+		}
+	}
+
+	return outputIndex, nil
+}
+func GetBalance(input *adaptor.GetBalanceInput, rpcParams *RPCParams, netID int) (*adaptor.GetBalanceOutput, error) {
+	if input.Address == "" {
+		return nil, fmt.Errorf("the Address is empty")
+	}
+
+	//chainnet
+	realNet := GetNet(netID)
+
+	//convert address from string
+	addr, err := btcutil.DecodeAddress(input.Address, realNet)
+	if err != nil {
+		return nil, fmt.Errorf("DecodeAddress address failed %s", err.Error())
+	}
+	//get rpc client
+	client, err := GetClient(rpcParams)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Shutdown()
+
+	outputIndexMap, err := getAllUnspend(client, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	//compute total Amount for balance
+	var result adaptor.GetBalanceOutput
+	var allAmount float64
+	for _, value := range outputIndexMap {
+		allAmount += value
+	}
+
+	//
+	bigInt := new(big.Int)
+	bigInt.SetUint64(uint64(allAmount * 1e8))
+	result.Balance.Amount = bigInt
+	result.Balance.Asset = "BTC"
+
+	return &result, nil
+}
+
 //
 //type GetBalanceHttpResponse struct {
 //	//Status string `json:"status"`
@@ -326,123 +213,148 @@ func GetNet(netID int) *chaincfg.Params {
 //
 //	return &result, nil
 //}
-//
-//func getAddrValue(client *rpcclient.Client, chainParams *chaincfg.Params,
-//	txHash *chainhash.Hash, index int) (addr string, value float64) {
-//	//get raw transaction by txHash
-//	tx, err := client.GetRawTransactionVerbose(txHash)
-//	if err != nil {
-//		return "", 0
-//	}
-//
-//	//get addr and value by index
-//	if index < len(tx.Vout) {
-//		for _, out := range tx.Vout {
-//			if int(out.N) == index {
-//				return out.ScriptPubKey.Addresses[0], out.Value
-//			}
-//		}
-//	}
-//	//return empty if error
-//	return "", 0
-//}
-//
-//func GetTransactions(getTransactionsParams *adaptor.GetTransactionsParams, rpcParams *RPCParams, netID int) (*adaptor.TransactionsResult, error) {
-//	//chainnet
-//	realNet := GetNet(netID)
-//
-//	//convert address from string
-//	addr, err := btcutil.DecodeAddress(getTransactionsParams.Account, realNet)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//get rpc client
-//	client, err := GetClient(rpcParams)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer client.Shutdown()
-//
-//	//get all raw transaction
-//	var strs []string
-//	msgTxs, err := client.SearchRawTransactionsVerbose(addr, 0, getTransactionsParams.Count, true, false, strs)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//save utxo to map, check next one transanction is spend or not
-//	msgIndex := map[string]int{}
-//
-//	//the result for return
-//	var transAll adaptor.TransactionsResult
-//	for index, msgTx := range msgTxs {
-//		//one transaction result
-//		var transOne adaptor.Transaction
-//		transOne.TxHash = msgTx.Txid
-//		transOne.Confirms = msgTx.Confirmations
-//
-//		//transaction inputs
-//		isSpend := false
-//		for _, in := range msgTx.Vin {
-//			//check is spend or not
-//			index, exist := msgIndex[in.Txid+strconv.Itoa(int(in.Vout))]
-//			if exist { //spend
-//				isSpend = true
-//				transOne.Inputs = append(transOne.Inputs,
-//					adaptor.InputIndex{in.Txid, in.Vout,
-//						transAll.Transactions[index].Outputs[in.Vout].Addr,
-//						transAll.Transactions[index].Outputs[in.Vout].Value})
-//			} else { //recv
-//				//to get addr and value
-//				txhash, _ := chainhash.NewHashFromStr(in.Txid)
-//				addr, value := getAddrValue(client, realNet, txhash, int(in.Vout))
-//				if 0 == value {
-//					continue
-//				}
-//				transOne.Inputs = append(transOne.Inputs,
-//					adaptor.InputIndex{in.Txid, in.Vout, addr, value})
-//			}
-//		}
-//
-//		//transaction outputs
-//		for outIndex, out := range msgTx.Vout {
-//			transOne.Outputs = append(transOne.Outputs,
-//				adaptor.OutputIndex{uint32(outIndex), out.ScriptPubKey.Addresses[0], out.Value})
-//			if out.ScriptPubKey.Addresses[0] == getTransactionsParams.Account {
-//				msgIndex[msgTx.Txid+strconv.Itoa(int(out.N))] = index
-//			}
-//		}
-//
-//		//calculate blancechanged
-//		if isSpend {
-//			totalInput := float64(0)
-//			for _, in := range transOne.Inputs {
-//				if getTransactionsParams.Account == in.Addr {
-//					totalInput += in.Value
-//				}
-//			}
-//			totalOutput := float64(0)
-//			for _, out := range transOne.Outputs {
-//				if getTransactionsParams.Account == out.Addr {
-//					totalOutput += out.Value
-//				}
-//			}
-//			//spend return detract from total input
-//			transOne.BlanceChanged = totalOutput - totalInput
-//		} else {
-//			totalRecv := float64(0)
-//			for _, out := range transOne.Outputs {
-//				if getTransactionsParams.Account == out.Addr {
-//					totalRecv += out.Value
-//				}
-//			}
-//			transOne.BlanceChanged = totalRecv
-//		}
-//
-//		//add to result for return
-//		transAll.Transactions = append(transAll.Transactions, transOne)
-//	}
-//
-//	return &transAll, nil
-//}
+
+func GetTransactions(input *adaptor.GetAddrTxHistoryInput, rpcParams *RPCParams, netID int) (*adaptor.GetAddrTxHistoryOutput, error) {
+	//chainnet
+	realNet := GetNet(netID)
+
+	//convert address from string
+	addr, err := btcutil.DecodeAddress(input.FromAddress, realNet)
+	if err != nil {
+		return nil, fmt.Errorf("DecodeAddress FromAddress failed : %s", err.Error())
+	}
+
+	//get rpc client
+	client, err := GetClient(rpcParams)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Shutdown()
+
+	//get all raw transaction
+	var strs []string
+	count := 999999
+	msgTxs, err := client.SearchRawTransactionsVerbose(addr, 0, count, true, false, strs) //BTCD API
+	if err != nil {
+		return nil, err
+	}
+
+	isFilter := false
+	if "" != input.ToAddress && input.AddressLogicAndOr {
+		isFilter = true
+	}
+
+	//the result for return
+	msgIndex := map[string]float64{}
+	var output adaptor.GetAddrTxHistoryOutput
+	for _, msgTx := range msgTxs {
+		//one transaction result
+		var tx adaptor.SimpleTransferTokenTx
+
+		//
+		change := float64(0)
+		amount := float64(0)
+		amountOther := float64(0)
+		isTo := false
+		for i, out := range msgTx.Vout {
+			if out.ScriptPubKey.Type == "nulldata" { //todo: more op_return ?
+				if strings.HasPrefix(out.ScriptPubKey.Asm, "OP_RETURN") {
+					data, _ := hex.DecodeString(out.ScriptPubKey.Asm[len("OP_RETURN "):])
+					tx.AttachData = data
+				}
+				continue
+			}
+			if len(out.ScriptPubKey.Addresses) == 0 {
+				continue
+			}
+			idIndex := msgTx.Txid + fmt.Sprintf("%02x", i)
+			msgIndex[idIndex] = out.Value //save in map
+
+			if input.FromAddress == out.ScriptPubKey.Addresses[0] {
+				change = out.Value
+				continue
+			}
+			if input.ToAddress != out.ScriptPubKey.Addresses[0] {
+				amountOther += out.Value
+				continue
+			}
+			isTo = true
+			tx.ToAddress = input.ToAddress
+			amount = out.Value
+			break
+		}
+		if isFilter && !isTo {
+			continue
+		}
+
+		//get input amount
+		inputAmount := float64(0)
+		for i := 0; i < len(msgTx.Vin); i++ {
+			idIndex := msgTx.Vin[i].Txid + fmt.Sprintf("%02x", i)
+			if val, exist := msgIndex[idIndex]; exist { //have saved in map
+				inputAmount += val
+				continue
+			}
+			hashPre, err := chainhash.NewHashFromStr(msgTx.Vin[i].Txid)
+			if err != nil {
+				return nil, fmt.Errorf("hashPre failed : %s", err.Error())
+			}
+			txPreResult, err := client.GetRawTransactionVerbose(hashPre) //BTCD API
+			if err != nil {
+				return nil, fmt.Errorf("GetRawTransactionVerbose txPre %d failed : %s", i, err.Error())
+			}
+			for j, out := range txPreResult.Vout {
+				if input.FromAddress != out.ScriptPubKey.Addresses[0] {
+					continue
+				}
+				idIndex := txPreResult.Txid + fmt.Sprintf("%02x", j)
+				msgIndex[idIndex] = out.Value //save in map
+			}
+			inputAmount += txPreResult.Vout[msgTx.Vin[i].Vout].Value
+		}
+		fee := inputAmount - change - amount
+
+		//turn to big int
+		bigIntAmount := new(big.Int)
+		bigIntAmount.SetUint64(uint64(amount * 1e8))
+		tx.Amount = adaptor.NewAmountAsset(bigIntAmount, "BTC")
+		bigIntFee := new(big.Int)
+		bigIntFee.SetUint64(uint64(fee * 1e8))
+		tx.Fee = adaptor.NewAmountAsset(bigIntFee, "BTC")
+
+		tx.TxID, _ = hex.DecodeString(msgTx.Txid)
+		txRaw, _ := hex.DecodeString(msgTx.Hex)
+		tx.TxRawData = txRaw
+		tx.CreatorAddress = input.FromAddress
+		tx.TargetAddress = tx.ToAddress
+		if msgTx.BlockHash != "" {
+			tx.IsInBlock = true
+			tx.IsSuccess = true
+			blockID, _ := hex.DecodeString(msgTx.BlockHash)
+			tx.BlockID = blockID
+			blkHash, err := chainhash.NewHashFromStr(msgTx.BlockHash)
+			if err == nil {
+				blkResult, err := client.GetBlockVerbose(blkHash) //BTCD API
+				if err == nil {
+					tx.BlockHeight = uint(blkResult.Height) //GetBlockVerbose
+				}
+			}
+		} else {
+			tx.IsInBlock = false
+			tx.IsSuccess = false
+		}
+		if msgTx.Confirmations >= 6 {
+			tx.IsStable = true
+		} else {
+			tx.IsStable = false
+		}
+		tx.TxIndex = 0 //todo
+		tx.Timestamp = uint64(msgTx.Blocktime)
+
+		//add to result for return
+		output.Txs = append(output.Txs, &tx)
+	}
+	output.Count = uint32(len(output.Txs))
+
+	return &output, nil
+}
