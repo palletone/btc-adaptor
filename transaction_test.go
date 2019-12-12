@@ -19,10 +19,10 @@ func TestCreateTransferTokenTx(t *testing.T) {
 
 	//
 	var input adaptor.CreateTransferTokenTxInput
-	input.FromAddress = "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"
-	input.ToAddress = "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"
-	input.Amount = adaptor.NewAmountAssetString("1000000", "BTC") //dao, 0.1 btc
-	input.Fee = adaptor.NewAmountAssetString("10000", "BTC")      //dao,0.0001 btc
+	input.FromAddress = "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"    //2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA
+	input.ToAddress = "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"       //mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5
+	input.Amount = adaptor.NewAmountAssetString("990000", "BTC") //dao, 0.0099 btc
+	input.Fee = adaptor.NewAmountAssetString("10000", "BTC")     //dao,0.0001 btc
 
 	//idIndex, _ := hex.DecodeString("101d482b60cd3f74a61ce265d62e383456b9c21c84477931d207ea8f503d84cc01")
 	//input.Extra = append(input.Extra, idIndex...)
@@ -34,7 +34,27 @@ func TestCreateTransferTokenTx(t *testing.T) {
 	} else {
 		resultJSON, _ := json.Marshal(output)
 		fmt.Println(string(resultJSON))
-		fmt.Printf("%x\n", output.Transaction)
+		rawTxHex := fmt.Sprintf("%x", output.Transaction)
+		fmt.Println(rawTxHex)
+		_, err = decodeRawTransaction(rawTxHex, NETID_TEST)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
+}
+
+func TestCalcTxHash(t *testing.T) {
+	tx, _ := hex.DecodeString("010000000144080d1b48b02a483b5341ba70b2660616d72d1aeb006518f3e261f7f651e48d00000000fdfd00004730440220475bc769dd39d5820131c3e3527f6710886c6852e66635b1f68aff0fdad88f5702206ce2ca0ac655f74ec5f01c0ca2ae9bc1228176bab1855a0a053c0c177bb5ae7c01483045022100dfa8811cee744502d183f67e8166480b0bcb1f0d4259f6fe3b2ee16aa0be568a022079aedff69da83654fe15bb0ab927510c737f772d1d048c219c25546d76af73eb014c69522103940ab29fbf214da2d8ec99c47db63879957311bd90d2f1c635828604d541051421020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb21029d80ff37838e4989a6aa26af41149d4f671976329e9ddb9b78fdea9814ae6ef553ae000000000250c30000000000001976a9140f08e55bcfc207632d2dcfc3d4db4b6d8d91b22e88acf07e0e000000000017a9147e037d8b8093a7cf3a6ec83aa8c852761a5d0cce8700000000")
+
+	input := &adaptor.CalcTxHashInput{Transaction: tx}
+
+	output, err := CalcTxHash(input)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		resultJSON, _ := json.Marshal(output)
+		fmt.Println(string(resultJSON))
+		fmt.Printf("%x\n", output.Hash)
 	}
 }
 

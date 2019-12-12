@@ -106,7 +106,7 @@ func getAllUnspend(client *rpcclient.Client, addr btcutil.Address) (map[string]f
 	outputIndex := map[string]float64{}
 	//the result for return
 	for _, msgTx := range msgTxs {
-		if int(msgTx.Confirmations) < 6 {
+		if int(msgTx.Confirmations) < MinConfirm {
 			continue
 		}
 		//transaction inputs
@@ -343,7 +343,7 @@ func GetTransactions(input *adaptor.GetAddrTxHistoryInput, rpcParams *RPCParams,
 			tx.IsInBlock = false
 			tx.IsSuccess = false
 		}
-		if msgTx.Confirmations >= 6 {
+		if msgTx.Confirmations >= MinConfirm {
 			tx.IsStable = true
 		} else {
 			tx.IsStable = false

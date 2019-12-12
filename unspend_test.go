@@ -20,12 +20,12 @@ func TestGetBalance(t *testing.T) {
 	testResult := 0.999
 	testResultUint64 := uint64(testResult * 1e8)
 
-	//	getBalanceParams := &adaptor.GetBalanceParams{Address:"mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt"}
-	getBalanceParams := &adaptor.GetBalanceInput{Address: "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"}
-	//	getBalanceParams := &adaptor.GetBalanceParams{Address:"miZqthevf8LWguQmUR6EwynULqjKmYWxyY"}
-	//	getBalanceParams := &adaptor.GetBalanceParams{Address:"2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"}
+	//	input := &adaptor.GetBalanceInput{Address:"mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt"}
+	//	input := &adaptor.GetBalanceInput{Address:"miZqthevf8LWguQmUR6EwynULqjKmYWxyY"}
+	//input := &adaptor.GetBalanceInput{Address: "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"}
+	input := &adaptor.GetBalanceInput{Address: "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"}
 
-	result, err := GetBalance(getBalanceParams, &rpcParams, NETID_TEST)
+	result, err := GetBalance(input, &rpcParams, NETID_TEST)
 	if err != nil {
 		fmt.Println(err.Error())
 	} else {

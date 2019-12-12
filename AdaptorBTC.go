@@ -37,6 +37,7 @@ func NewAdaptorBTC(netID int, rPCParams RPCParams) *AdaptorBTC {
 	return &AdaptorBTC{netID, rPCParams}
 }
 
+const MinConfirm = 6
 const (
 	NETID_MAIN = iota
 	NETID_TEST

@@ -147,6 +147,9 @@ func CreateTransferTokenTx(input *adaptor.CreateTransferTokenTxInput, rpcParams 
 	if len(outputIndexSel) == 0 {
 		return nil, fmt.Errorf("getUnspends failed : balance is not enough")
 	}
+	//for _, out := range outputIndexSel { //Debug
+	//	fmt.Println(out.OutputIndex, out.Value)
+	//}
 
 	msgTx := wire.NewMsgTx(1)
 	//transaction inputs
@@ -179,15 +182,20 @@ func CreateTransferTokenTx(input *adaptor.CreateTransferTokenTxInput, rpcParams 
 	txOut := wire.NewTxOut(int64(btcAmount), pkScript)
 	msgTx.AddTxOut(txOut)
 	//change
-	change := allInputAmount - btcAmount
+	fee := input.Fee.Amount.Uint64()
+	change := allInputAmount - btcAmount - fee
+	//fmt.Println(change, allInputAmount, btcAmount, fee) //Debug
 	if change > 0 {
 		pkScript, _ := txscript.PayToAddrScript(addr)
-		txOut := wire.NewTxOut(int64(btcAmount), pkScript)
+		txOut := wire.NewTxOut(int64(change), pkScript)
 		msgTx.AddTxOut(txOut)
 	}
 	if len(msgTx.TxOut) == 0 {
 		return nil, fmt.Errorf("Process TxOut error : NO Output.")
 	}
+	//for _, out := range msgTx.TxOut { //Debug
+	//	fmt.Println(out.Value)
+	//}
 
 	//SerializeSize transaction to bytes
 	buf := bytes.NewBuffer(make([]byte, 0, msgTx.SerializeSize()))
@@ -200,6 +208,36 @@ func CreateTransferTokenTx(input *adaptor.CreateTransferTokenTxInput, rpcParams 
 	output.Extra = extra
 
 	return &output, nil
+}
+
+func decodeRawTransaction(rawTxHex string, netID int) (interface{}, error) {
+
+	//covert rawtransaction hexString to bytes
+	rawTXBytes, err := hex.DecodeString(rawTxHex)
+	if err != nil {
+		return nil, err
+	}
+
+	var mtx wire.MsgTx
+	err = mtx.Deserialize(bytes.NewReader(rawTXBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	realNet := GetNet(netID)
+
+	//
+	fmt.Println("Input : ")
+	for i := range mtx.TxIn {
+		fmt.Println(mtx.TxIn[i].PreviousOutPoint.Hash.String(), mtx.TxIn[i].PreviousOutPoint.Index)
+	}
+	fmt.Println("Output : ")
+	for i := range mtx.TxOut {
+		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(mtx.TxOut[i].PkScript, realNet)
+		fmt.Println(addrs[0].EncodeAddress(), btcutil.Amount(mtx.TxOut[i].Value).ToBTC())
+	}
+
+	return &mtx, nil
 }
 
 func CalcTxHash(input *adaptor.CalcTxHashInput) (*adaptor.CalcTxHashOutput, error) {
@@ -285,7 +323,7 @@ func GetBlockInfo(input *adaptor.GetBlockInfoInput, rpcParams *RPCParams) (*adap
 		}
 	}
 
-	if blkResult.Confirmations >= 6 { //GetBlockVerbose
+	if blkResult.Confirmations >= MinConfirm { //GetBlockVerbose
 		output.Block.IsStable = true
 	} else {
 		output.Block.IsStable = false
@@ -421,7 +459,7 @@ func GetTxBasicInfo(input *adaptor.GetTxBasicInfoInput, rpcParams *RPCParams) (*
 		output.Tx.IsInBlock = false
 		output.Tx.IsSuccess = false
 	}
-	if txResult.Confirmations >= 6 {
+	if txResult.Confirmations >= MinConfirm {
 		output.Tx.IsStable = true
 	} else {
 		output.Tx.IsStable = false
@@ -537,7 +575,7 @@ func GetTransferTx(input *adaptor.GetTransferTxInput, rpcParams *RPCParams) (*ad
 		output.Tx.IsInBlock = false
 		output.Tx.IsSuccess = false
 	}
-	if txResult.Confirmations >= 6 {
+	if txResult.Confirmations >= MinConfirm {
 		output.Tx.IsStable = true
 	} else {
 		output.Tx.IsStable = false

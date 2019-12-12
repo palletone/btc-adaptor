@@ -90,18 +90,18 @@ func VerifySignature(input *adaptor.VerifySignatureInput) (*adaptor.VerifySignat
 	return &output, nil
 }
 
-// SignatureError records the underlying error when validating a transaction input signature.
-type SignatureError struct {
+// signatureError records the underlying error when validating a transaction input signature.
+type signatureError struct {
 	InputIndex uint32
 	Error      error
 }
 
-func SignTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
+func signTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
 	additionalPrevScripts map[wire.OutPoint][]byte,
 	additionalKeysByAddress map[string]*btcutil.WIF,
-	p2shRedeemScriptsByAddress map[string][]byte, chainParams *chaincfg.Params) ([]SignatureError, error) {
+	p2shRedeemScriptsByAddress map[string][]byte, chainParams *chaincfg.Params) ([]signatureError, error) {
 
-	signErrors := []SignatureError{}
+	signErrors := []signatureError{}
 	//var signErrors []SignatureErroerr := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 	//addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	//txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -162,7 +162,7 @@ func SignTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
 			// Failure to sign isn't an error, it just means that
 			// the tx isn't complete.
 			if err != nil {
-				signErrors = append(signErrors, SignatureError{
+				signErrors = append(signErrors, signatureError{
 					InputIndex: uint32(i),
 					Error:      err,
 				})
@@ -179,7 +179,7 @@ func SignTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
 			err = vm.Execute()
 		}
 		if err != nil {
-			signErrors = append(signErrors, SignatureError{
+			signErrors = append(signErrors, signatureError{
 				InputIndex: uint32(i),
 				Error:      err,
 			})
@@ -265,15 +265,16 @@ func SignTransaction(input *adaptor.SignTransactionInput, netID int) (*adaptor.S
 
 	inputs := make(map[wire.OutPoint][]byte)
 	for _, txinOne := range tx.TxIn {
+		//fmt.Println(txinOne.PreviousOutPoint.Hash.String(), txinOne.PreviousOutPoint.Index) //Debug
 		inputs[wire.OutPoint{Hash: txinOne.PreviousOutPoint.Hash, Index: txinOne.PreviousOutPoint.Index}] = scriptPkScript
 	}
 
-	signErrs, err := SignTransactionReal(&tx, txscript.SigHashAll, inputs, keys, scripts, realNet)
+	signErrs, err := signTransactionReal(&tx, txscript.SigHashAll, inputs, keys, scripts, realNet)
 	if err != nil {
 		return nil, err
 	}
-	if len(signErrs) != 0 {
-		return nil, fmt.Errorf("SignTransactionReal failed : not Complete")
+	if !isRedeem && len(signErrs) != 0 {
+		return nil, fmt.Errorf("signTransactionReal failed : not Complete")
 	}
 
 	var buf bytes.Buffer
@@ -284,8 +285,8 @@ func SignTransaction(input *adaptor.SignTransactionInput, netID int) (*adaptor.S
 
 	var signatures []byte
 	for _, txinOne := range tx.TxIn {
-		fmt.Printf("%x\n", txinOne.SignatureScript)
-		signatures = append(signatures, txinOne.SignatureScript...)
+		//fmt.Printf("%x\n", txinOne.SignatureScript) //Debug
+		signatures = append(signatures, txinOne.SignatureScript...) //todo [][]byte ?
 	}
 
 	var output adaptor.SignTransactionOutput
@@ -454,7 +455,7 @@ func BindTxAndSignature(input *adaptor.BindTxAndSignatureInput, netID int) (*ada
 			err = vm.Execute()
 		}
 		if err != nil {
-			return nil, fmt.Errorf("SignTransactionReal failed : not Complete")
+			return nil, fmt.Errorf("signTransactionReal failed : not Complete")
 		}
 	}
 
