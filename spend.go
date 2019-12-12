@@ -99,13 +99,12 @@ type signatureError struct {
 func signTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
 	additionalPrevScripts map[wire.OutPoint][]byte,
 	additionalKeysByAddress map[string]*btcutil.WIF,
-	p2shRedeemScriptsByAddress map[string][]byte, chainParams *chaincfg.Params) ([]signatureError, error) {
+	p2shRedeemScriptsByAddress map[string][]byte, chainParams *chaincfg.Params) []signatureError {
 
 	signErrors := []signatureError{}
 	//var signErrors []SignatureErroerr := walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
 	//addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	//txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-	var err error
 	for i, txIn := range tx.TxIn {
 		prevOutScript, ok := additionalPrevScripts[txIn.PreviousOutPoint]
 		if !ok {
@@ -187,7 +186,7 @@ func signTransactionReal(tx *wire.MsgTx, hashType txscript.SigHashType,
 	}
 	//return nil
 	//})
-	return signErrors, err
+	return signErrors
 }
 
 func SignTransaction(input *adaptor.SignTransactionInput, netID int) (*adaptor.SignTransactionOutput, error) {
@@ -269,10 +268,7 @@ func SignTransaction(input *adaptor.SignTransactionInput, netID int) (*adaptor.S
 		inputs[wire.OutPoint{Hash: txinOne.PreviousOutPoint.Hash, Index: txinOne.PreviousOutPoint.Index}] = scriptPkScript
 	}
 
-	signErrs, err := signTransactionReal(&tx, txscript.SigHashAll, inputs, keys, scripts, realNet)
-	if err != nil {
-		return nil, err
-	}
+	signErrs := signTransactionReal(&tx, txscript.SigHashAll, inputs, keys, scripts, realNet)
 	if !isRedeem && len(signErrs) != 0 {
 		return nil, fmt.Errorf("signTransactionReal failed : not Complete")
 	}
@@ -305,10 +301,10 @@ func SignTransaction(input *adaptor.SignTransactionInput, netID int) (*adaptor.S
 //	} `json:"data"`
 //}
 //
-//func SendTransactionHttp(sendTransactionParams *adaptor.SendTransactionHttpParams, netID int) (*adaptor.SendTransactionHttpResult, error) {
+//func SendTransactionHttp(input *adaptor.SendTransactionInput, netID int) (*adaptor.SendTransactionOutput, error) {
 //	//check empty string
-//	if "" == sendTransactionParams.TransactionHex {
-//		return nil, errors.New("Params error : NO TransactionHex.")
+//	if 0 == len(input.Transaction) {
+//		return nil, errors.New("the Transaction is empty")
 //	}
 //
 //	var request string
@@ -319,7 +315,7 @@ func SignTransaction(input *adaptor.SignTransactionInput, netID int) (*adaptor.S
 //	}
 //
 //	//
-//	params := map[string]string{"tx_hex": sendTransactionParams.TransactionHex}
+//	params := map[string]string{"tx_hex": hex.EncodeToString(input.Transaction)}
 //	paramsJson, err := json.Marshal(params)
 //	if err != nil {
 //		return nil, err
@@ -337,10 +333,11 @@ func SignTransaction(input *adaptor.SignTransactionInput, netID int) (*adaptor.S
 //	}
 //
 //	//result for return
-//	var sendTransactionResult adaptor.SendTransactionHttpResult
-//	sendTransactionResult.TransactionHah = txResult.Data.Txid
+//	var output adaptor.SendTransactionOutput
+//	txID, _ := hex.DecodeString(txResult.Data.Txid)
+//	output.TxID = txID
 //
-//	return &sendTransactionResult, nil
+//	return &output, nil
 //}
 
 func SendTransaction(input *adaptor.SendTransactionInput, rpcParams *RPCParams) (*adaptor.SendTransactionOutput, error) {
@@ -512,8 +509,7 @@ func mkGetScript(scripts map[string][]byte) txscript.ScriptDB {
 }
 
 //if complete, ruturn nil
-func checkScripts(tx *wire.MsgTx, idx int, inputAmt int64,
-	sigScript, scriptPkScript []byte) error {
+func checkScripts(tx *wire.MsgTx, idx int, inputAmt int64, scriptPkScript []byte) error {
 	vm, err := txscript.NewEngine(scriptPkScript, tx, idx,
 		txscript.ScriptBip16|txscript.ScriptVerifyDERSignatures,
 		nil, nil, inputAmt)
@@ -619,7 +615,7 @@ func MultisignOneByOne(prevTxHash string, index uint,
 	}
 
 	//
-	err = checkScripts(tx, 0, amount, sigScript, scriptPkScript)
+	err = checkScripts(tx, 0, amount, scriptPkScript)
 	if err != nil {
 		complete = false
 	} else {

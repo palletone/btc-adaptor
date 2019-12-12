@@ -19,10 +19,14 @@ func TestCreateTransferTokenTx(t *testing.T) {
 
 	//
 	var input adaptor.CreateTransferTokenTxInput
-	input.FromAddress = "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"    //2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA
-	input.ToAddress = "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"       //mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5
-	input.Amount = adaptor.NewAmountAssetString("990000", "BTC") //dao, 0.0099 btc
+	input.FromAddress = "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"     //2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA
+	input.ToAddress = "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"      //mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5
+	input.Amount = adaptor.NewAmountAssetString("980000", "BTC") //dao, 0.0099 btc
 	input.Fee = adaptor.NewAmountAssetString("10000", "BTC")     //dao,0.0001 btc
+
+	input.ToAddress = "PalletOne"
+	input.ToAddress = "P19z4r7G9MpZtaYMZcATWinTwXeGBj7fWTd"
+	input.Amount = adaptor.NewAmountAssetString("0", "BTC") //op_return
 
 	//idIndex, _ := hex.DecodeString("101d482b60cd3f74a61ce265d62e383456b9c21c84477931d207ea8f503d84cc01")
 	//input.Extra = append(input.Extra, idIndex...)
@@ -34,8 +38,9 @@ func TestCreateTransferTokenTx(t *testing.T) {
 	} else {
 		resultJSON, _ := json.Marshal(output)
 		fmt.Println(string(resultJSON))
+		fmt.Printf("Extra : %x\n", output.Extra)
 		rawTxHex := fmt.Sprintf("%x", output.Transaction)
-		fmt.Println(rawTxHex)
+		fmt.Printf("rawTxHex : %s\n", rawTxHex)
 		_, err = decodeRawTransaction(rawTxHex, NETID_TEST)
 		if err != nil {
 			fmt.Println(err.Error())
@@ -111,7 +116,7 @@ func TestGetPalletOneMappingAddress(t *testing.T) {
 	//fmt.Println(n)
 	//return
 
-	txIDHex := "8b886fb5033d26c2bad728d73188e4eac46e2eb61260a2638b3330484498c576"
+	txIDHex := "6b2c4379b326757dd5b847f3c584170c5fe2649e6e33f962cf7e9826f77f07b6"
 
 	var input adaptor.GetPalletOneMappingAddressInput
 	input.MappingDataSource = txIDHex
@@ -157,7 +162,7 @@ func TestGetTransferTx(t *testing.T) {
 		CertPath:  GCertPath,
 	}
 
-	txIDHex := "8b886fb5033d26c2bad728d73188e4eac46e2eb61260a2638b3330484498c576"
+	txIDHex := "6b2c4379b326757dd5b847f3c584170c5fe2649e6e33f962cf7e9826f77f07b6"
 	txID, _ := hex.DecodeString(txIDHex)
 
 	var input adaptor.GetTransferTxInput
@@ -170,20 +175,25 @@ func TestGetTransferTx(t *testing.T) {
 	} else {
 		resultJSON, _ := json.Marshal(output)
 		fmt.Println(string(resultJSON))
+		if 0 != len(output.Tx.AttachData) {
+			fmt.Println("data : ", string(output.Tx.AttachData))
+		}
 	}
 }
 
-//func TestGetTransactionHttp(t *testing.T) {
-//	var getTransactionParams adaptor.GetTransactionHttpParams
-//	getTransactionParams.TxHash = "39176cc119da6a491472ef598335305839b9ccb6b7d8cd635c863456f8b09917"
-//
-//	//{"txid":"39176cc119da6a491472ef598335305839b9ccb6b7d8cd635c863456f8b09917","confirms":75542,"inputs":[{"txid":"6c4d7711f71dc5d075d9e10583351bb7ee530b44c8fd581cb97da91ea31d88cf","vout":0}],"outputs":[{"index":0,"addr":"2NGDzMbWC7Q1tv3bHc9B8FytBbKEwXJSgkg","value":0.60085864}]}
-//
-//	result, err := GetTransactionHttp(&getTransactionParams, NETID_TEST)
-//	if err != nil {
-//		fmt.Println(err.Error())
-//	} else {
-//		fmt.Println(result)
-//	}
-//
-//}
+func TestGetTxBasicInfoHttp(t *testing.T) {
+	txIDHex := "8b886fb5033d26c2bad728d73188e4eac46e2eb61260a2638b3330484498c576"
+	txID, _ := hex.DecodeString(txIDHex)
+
+	var input adaptor.GetTxBasicInfoInput
+	input.TxID = txID
+	fmt.Printf("%x\n", input.TxID)
+
+	output, err := GetTxBasicInfoHttp(&input, NETID_TEST)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		resultJSON, _ := json.Marshal(output)
+		fmt.Println(string(resultJSON))
+	}
+}

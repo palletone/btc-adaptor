@@ -20,6 +20,7 @@ package btcadaptor
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -54,7 +55,7 @@ func sortByValue(tpl outputIndexValueList) outputIndexValueList {
 	return tpl
 }
 
-func getUnspends(outputIndexMap map[string]float64, btcAmout uint64) []outputIndexValue {
+func selUnspends(outputIndexMap map[string]float64, btcAmout uint64) []outputIndexValue {
 	var smlUnspends []outputIndexValue
 	var bigUnspends []outputIndexValue
 	var selUnspends []outputIndexValue
@@ -124,16 +125,27 @@ func CreateTransferTokenTx(input *adaptor.CreateTransferTokenTxInput, rpcParams 
 	}
 	defer client.Shutdown()
 
-	//get all unspend
+	//check amount
+	fee := +input.Fee.Amount.Uint64()
+	if 0 == fee {
+		return nil, fmt.Errorf("input.Fee invalid, must not be zero")
+	}
+	amount := input.Amount.Amount.Uint64()
+	btcAmount := amount + fee
+
+	//1.get all unspend
 	outputIndexMap, err := getAllUnspend(client, addr)
 	if err != nil {
 		return nil, err
+	}
+	if len(outputIndexMap) == 0 {
+		return nil, fmt.Errorf("getAllUnspend failed : no utxos")
 	}
 	//for outputIndex, value := range outputIndexMap {
 	//	fmt.Println(outputIndex, value)
 	//}
 
-	//remove extra utxo
+	//2.remove extra utxo
 	for i := 0; i < len(input.Extra); i += 33 {
 		idIndexHex := hex.EncodeToString(input.Extra[i:33])
 		if _, exist := outputIndexMap[idIndexHex]; exist {
@@ -141,11 +153,10 @@ func CreateTransferTokenTx(input *adaptor.CreateTransferTokenTxInput, rpcParams 
 		}
 	}
 
-	//select greet
-	btcAmount := input.Amount.Amount.Uint64()
-	outputIndexSel := getUnspends(outputIndexMap, btcAmount)
+	//3.select greet
+	outputIndexSel := selUnspends(outputIndexMap, btcAmount)
 	if len(outputIndexSel) == 0 {
-		return nil, fmt.Errorf("getUnspends failed : balance is not enough")
+		return nil, fmt.Errorf("selUnspends failed : balance is not enough")
 	}
 	//for _, out := range outputIndexSel { //Debug
 	//	fmt.Println(out.OutputIndex, out.Value)
@@ -176,14 +187,19 @@ func CreateTransferTokenTx(input *adaptor.CreateTransferTokenTxInput, rpcParams 
 	//transaction outputs
 	addrTo, err := btcutil.DecodeAddress(input.ToAddress, realNet)
 	if err != nil {
-		return nil, fmt.Errorf("DecodeAddress ToAddress failed %s", err.Error())
+		amount = 0 //op_return set amount 0
+		pkScript, _ := txscript.NullDataScript([]byte(input.ToAddress))
+		txOut := wire.NewTxOut(int64(0), pkScript)
+		msgTx.AddTxOut(txOut)
+		//return nil, fmt.Errorf("DecodeAddress ToAddress failed %s", err.Error())
+	} else {
+		pkScript, _ := txscript.PayToAddrScript(addrTo)
+		txOut := wire.NewTxOut(int64(amount), pkScript)
+		msgTx.AddTxOut(txOut)
 	}
-	pkScript, _ := txscript.PayToAddrScript(addrTo)
-	txOut := wire.NewTxOut(int64(btcAmount), pkScript)
-	msgTx.AddTxOut(txOut)
+
 	//change
-	fee := input.Fee.Amount.Uint64()
-	change := allInputAmount - btcAmount - fee
+	change := allInputAmount - amount - fee
 	//fmt.Println(change, allInputAmount, btcAmount, fee) //Debug
 	if change > 0 {
 		pkScript, _ := txscript.PayToAddrScript(addr)
@@ -211,7 +227,6 @@ func CreateTransferTokenTx(input *adaptor.CreateTransferTokenTxInput, rpcParams 
 }
 
 func decodeRawTransaction(rawTxHex string, netID int) (interface{}, error) {
-
 	//covert rawtransaction hexString to bytes
 	rawTXBytes, err := hex.DecodeString(rawTxHex)
 	if err != nil {
@@ -234,7 +249,14 @@ func decodeRawTransaction(rawTxHex string, netID int) (interface{}, error) {
 	fmt.Println("Output : ")
 	for i := range mtx.TxOut {
 		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(mtx.TxOut[i].PkScript, realNet)
-		fmt.Println(addrs[0].EncodeAddress(), btcutil.Amount(mtx.TxOut[i].Value).ToBTC())
+		if 0 != len(addrs) {
+			fmt.Println(addrs[0].EncodeAddress(), btcutil.Amount(mtx.TxOut[i].Value).ToBTC())
+		} else {
+			disbuf, _ := txscript.DisasmString(mtx.TxOut[i].PkScript)
+			dataHex := disbuf[len("OP_RETURN "):]
+			data, _ := hex.DecodeString(dataHex)
+			fmt.Println("data : ", string(data))
+		}
 	}
 
 	return &mtx, nil
@@ -365,7 +387,7 @@ func GetPalletOneMappingAddress(input *adaptor.GetPalletOneMappingAddressInput, 
 	}
 	fromAddr := txPreResult.Vout[txResult.Vin[0].Vout].ScriptPubKey.Addresses[0]
 	if input.ChainAddress == "" {
-		input.ChainAddress = fromAddr
+		output.ChainAddress = fromAddr
 	} else if fromAddr != input.ChainAddress {
 		return nil, fmt.Errorf("the ChainAddress is not match")
 	}
@@ -617,21 +639,21 @@ func httpPost(url string, params string) (string, error, int) {
 	return string(body), nil, resp.StatusCode
 }
 
-const base = "https://chain.so/api/v2/"
+const base = "https://block.io/api/v2/"
 
 type GetTransactionHttpResponse struct {
 	//Status string `json:"status"`
 	Data struct {
 		//Network       string `json:"network"`
-		Txid string `json:"txid"`
-		//Blockhash     string `json:"blockhash"`
-		Confirmations int `json:"confirmations"`
-		//Time          int    `json:"time"`
-		Inputs []struct {
+		Txid          string `json:"txid"`
+		Blockhash     string `json:"blockhash"`
+		Confirmations int    `json:"confirmations"`
+		Time          int    `json:"time"`
+		Inputs        []struct {
 			//InputNo    int         `json:"input_no"`
 			Value   string `json:"value"`
 			Address string `json:"address"`
-			//Type       string      `json:"type"`
+			Type    string `json:"type"`
 			//Script     string      `json:"script"`
 			//Witness    interface{} `json:"witness"`
 			FromOutput struct {
@@ -643,51 +665,88 @@ type GetTransactionHttpResponse struct {
 			OutputNo int    `json:"output_no"`
 			Value    string `json:"value"`
 			Address  string `json:"address"`
-			//Type     string `json:"type"`
-			//Script   string `json:"script"`
+			Type     string `json:"type"`
+			Script   string `json:"script"`
 		} `json:"outputs"`
-		//TxHex    string `json:"tx_hex"`
+		TxHex string `json:"tx_hex"`
 		//Size     int    `json:"size"`
 		//Version  int    `json:"version"`
 		Locktime int `json:"locktime"`
 	} `json:"data"`
 }
 
-//func GetTransactionHttp(getTransactionByHashParams *adaptor.GetTransactionHttpParams, netID int) (*adaptor.GetTransactionHttpResult, error) {
-//	if "" == getTransactionByHashParams.TxHash {
-//		return nil, errors.New("TxHash is empty")
-//	}
-//	var request string
-//	if netID == NETID_MAIN {
-//		request = base + "get_tx/BTC/"
-//	} else {
-//		request = base + "get_tx/BTCTEST/"
-//	}
-//	//
-//	strRespose, err, _ := httpGet(request + getTransactionByHashParams.TxHash)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	var txResult GetTransactionHttpResponse
-//	err = json.Unmarshal([]byte(strRespose), &txResult)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//result for return
-//	var getTransactionByHashResult adaptor.GetTransactionHttpResult
-//	for _, out := range txResult.Data.Outputs {
-//		value, _ := strconv.ParseFloat(out.Value, 64)
-//		getTransactionByHashResult.Outputs = append(getTransactionByHashResult.Outputs,
-//			adaptor.OutputIndex{uint32(out.OutputNo), out.Address, value})
-//	}
-//	for _, in := range txResult.Data.Inputs {
-//		getTransactionByHashResult.Inputs = append(getTransactionByHashResult.Inputs,
-//			adaptor.Input{in.FromOutput.Txid, uint32(in.FromOutput.OutputNo), in.Address})
-//	}
-//	getTransactionByHashResult.Txid = txResult.Data.Txid
-//	getTransactionByHashResult.Confirms = uint64(txResult.Data.Confirmations)
-//
-//	return &getTransactionByHashResult, nil
-//}
+func GetTxBasicInfoHttp(input *adaptor.GetTxBasicInfoInput, netID int) (*adaptor.GetTxBasicInfoOutput, error) {
+	txHash := hex.EncodeToString(input.TxID)
+	if "" == txHash {
+		return nil, fmt.Errorf("TxHash is empty")
+	}
+
+	var request string
+	//if netID == NETID_MAIN {
+	//	request = base + "get_tx/BTC/"
+	//} else {
+	//	request = base + "get_tx/BTCTEST/"
+	//}
+	if netID == NETID_MAIN {
+		request = base + "get_raw_transaction/?api_key=53ef-d8e9-1414-589f&txid="
+	} else {
+		request = base + "get_raw_transaction/?api_key=f13a-e0e6-614f-bbf8&txid="
+	}
+	//
+	strRespose, err, _ := httpGet(request + txHash)
+	if err != nil {
+		return nil, err
+	}
+
+	var txResult GetTransactionHttpResponse
+	err = json.Unmarshal([]byte(strRespose), &txResult)
+	if err != nil {
+		return nil, err
+	}
+
+	//result for return
+	var output adaptor.GetTxBasicInfoOutput
+	//get from address
+	fromAddr := txResult.Data.Inputs[0].Address
+
+	//get to address
+	toAddr := ""
+	for _, out := range txResult.Data.Outputs {
+		if "" == out.Address {
+			continue
+		}
+		if fromAddr == out.Address {
+			continue
+		}
+		if toAddr != "" && toAddr != out.Address {
+			return nil, fmt.Errorf("Not support send 2+ tx ")
+		}
+		toAddr = out.Address
+		break
+	}
+
+	output.Tx.TxID, _ = hex.DecodeString(txResult.Data.Txid)
+	txRaw, _ := hex.DecodeString(txResult.Data.TxHex)
+	output.Tx.TxRawData = txRaw
+	output.Tx.CreatorAddress = fromAddr
+	output.Tx.TargetAddress = toAddr
+	if txResult.Data.Blockhash != "" { //GetRawTransactionVerbose
+		output.Tx.IsInBlock = true
+		output.Tx.IsSuccess = true
+		blockID, _ := hex.DecodeString(txResult.Data.Blockhash)
+		output.Tx.BlockID = blockID
+		output.Tx.BlockHeight = 0 //todo
+	} else {
+		output.Tx.IsInBlock = false
+		output.Tx.IsSuccess = false
+	}
+	if txResult.Data.Confirmations >= MinConfirm {
+		output.Tx.IsStable = true
+	} else {
+		output.Tx.IsStable = false
+	}
+	output.Tx.TxIndex = 0 //todo
+	output.Tx.Timestamp = uint64(txResult.Data.Time)
+
+	return &output, nil
+}

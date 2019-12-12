@@ -64,6 +64,10 @@ func (abtc *AdaptorBTCHTTP) GetPalletOneMappingAddress(addr *adaptor.GetPalletOn
 	return nil, errors.New("todo")
 }
 
+func (abtc *AdaptorBTCHTTP) HashMessage(input *adaptor.HashMessageInput) (*adaptor.HashMessageOutput, error) {
+	return HashMessage(input)
+}
+
 //对一条消息进行签名
 func (abtc *AdaptorBTCHTTP) SignMessage(input *adaptor.SignMessageInput) (*adaptor.SignMessageOutput, error) {
 	return SignMessage(input)
@@ -75,18 +79,18 @@ func (abtc *AdaptorBTCHTTP) VerifySignature(input *adaptor.VerifySignatureInput)
 }
 
 //对一条交易进行签名，并返回签名结果
-func (abtc *AdaptorBTCHTTP) SignTransaction(input *adaptor.SignTransactionInput) (*adaptor.SignTransactionOutput, error) { //todo
-	return nil, errors.New("todo")
+func (abtc *AdaptorBTCHTTP) SignTransaction(input *adaptor.SignTransactionInput) (*adaptor.SignTransactionOutput, error) {
+	return SignTransaction(input, abtc.NetID)
 }
 
 //将未签名的原始交易与签名进行绑定，返回一个签名后的交易
-func (abtc *AdaptorBTCHTTP) BindTxAndSignature(input *adaptor.BindTxAndSignatureInput) (*adaptor.BindTxAndSignatureOutput, error) { //todo
-	return nil, errors.New("todo")
+func (abtc *AdaptorBTCHTTP) BindTxAndSignature(input *adaptor.BindTxAndSignatureInput) (*adaptor.BindTxAndSignatureOutput, error) {
+	return BindTxAndSignature(input, abtc.NetID)
 }
 
 //根据交易内容，计算交易Hash
-func (abtc *AdaptorBTCHTTP) CalcTxHash(input *adaptor.CalcTxHashInput) (*adaptor.CalcTxHashOutput, error) { //todo
-	return nil, errors.New("todo")
+func (abtc *AdaptorBTCHTTP) CalcTxHash(input *adaptor.CalcTxHashInput) (*adaptor.CalcTxHashOutput, error) {
+	return CalcTxHash(input)
 }
 
 //将签名后的交易广播到网络中,如果发送交易需要手续费，指定最多支付的手续费
@@ -95,8 +99,8 @@ func (abtc *AdaptorBTCHTTP) SendTransaction(input *adaptor.SendTransactionInput)
 }
 
 //根据交易ID获得交易的基本信息
-func (abtc *AdaptorBTCHTTP) GetTxBasicInfo(input *adaptor.GetTxBasicInfoInput) (*adaptor.GetTxBasicInfoOutput, error) { //todo zxl
-	return nil, errors.New("todo")
+func (abtc *AdaptorBTCHTTP) GetTxBasicInfo(input *adaptor.GetTxBasicInfoInput) (*adaptor.GetTxBasicInfoOutput, error) {
+	return GetTxBasicInfoHttp(input, abtc.NetID)
 }
 
 //查询获得一个区块的信息
@@ -136,73 +140,30 @@ func (abtc *AdaptorBTCHTTP) CreateMultiSigAddress(input *adaptor.CreateMultiSigA
 	return CreateMultiSigAddress(input, abtc.NetID)
 }
 
-//func (abtc AdaptorBTCHTTP) NewPrivateKey() (wifPriKey string) {
-//	return NewPrivateKey(abtc.NetID)
-//}
-//func (abtc AdaptorBTCHTTP) GetPublicKey(wifPriKey string) (pubKey string) {
-//	return GetPublicKey(wifPriKey, abtc.NetID)
-//}
-//func (abtc AdaptorBTCHTTP) GetAddress(wifPriKey string) (address string) {
-//	return GetAddress(wifPriKey, abtc.NetID)
-//}
-//func (abtc AdaptorBTCHTTP) GetAddressByPubkey(pubKeyHex string) (string, error) {
-//	return GetAddressByPubkey(pubKeyHex, abtc.NetID)
-//}
-//func (abtc AdaptorBTCHTTP) CreateMultiSigAddress(params *adaptor.CreateMultiSigParams) (*adaptor.CreateMultiSigResult, error) {
-//	return CreateMultiSigAddress(params, abtc.NetID)
-//}
-//
 //func (abtc AdaptorBTCHTTP) GetUTXO(params *adaptor.GetUTXOParams) (*adaptor.GetUTXOResult, error) {
 //	return GetUTXO(params, &abtc.RPCParams, abtc.NetID)
 //}
 //func (abtc AdaptorBTCHTTP) GetUTXOHttp(params *adaptor.GetUTXOHttpParams) (*adaptor.GetUTXOHttpResult, error) {
 //	return GetUTXOHttp(params, abtc.NetID)
 //}
-//
-//func (abtc AdaptorBTCHTTP) RawTransactionGen(params *adaptor.RawTransactionGenParams) (*adaptor.RawTransactionGenResult, error) {
-//	return RawTransactionGen(params, abtc.NetID)
-//}
-//func (abtc AdaptorBTCHTTP) DecodeRawTransaction(params *adaptor.DecodeRawTransactionParams) (*adaptor.DecodeRawTransactionResult, error) {
-//	return DecodeRawTransaction(params, abtc.NetID)
-//}
+
 //func (abtc AdaptorBTCHTTP) GetTransactionByHash(params *adaptor.GetTransactionByHashParams) (*adaptor.GetTransactionByHashResult, error) {
 //	return GetTransactionByHash(params, &abtc.RPCParams)
 //}
 //func (abtc AdaptorBTCHTTP) GetTransactionHttp(params *adaptor.GetTransactionHttpParams) (*adaptor.GetTransactionHttpResult, error) {
 //	return GetTransactionHttp(params, abtc.NetID)
 //}
-//
-//func (abtc AdaptorBTCHTTP) SignTransaction(params *adaptor.SignTransactionParams) (*adaptor.SignTransactionResult, error) {
-//	return SignTransaction(params, abtc.NetID)
-//}
-//func (abtc AdaptorBTCHTTP) SignTxSend(params *adaptor.SignTxSendParams) (*adaptor.SignTxSendResult, error) {
-//	return SignTxSend(params, &abtc.RPCParams, abtc.NetID)
-//}
+
 //func (abtc AdaptorBTCHTTP) GetBalance(params *adaptor.GetBalanceParams) (*adaptor.GetBalanceResult, error) {
 //	return GetBalance(params, &abtc.RPCParams, abtc.NetID)
 //}
 //func (abtc AdaptorBTCHTTP) GetBalanceHttp(params *adaptor.GetBalanceHttpParams) (*adaptor.GetBalanceHttpResult, error) {
 //	return GetBalanceHttp(params, abtc.NetID)
 //}
-//func (abtc AdaptorBTCHTTP) GetTransactions(params *adaptor.GetTransactionsParams) (*adaptor.TransactionsResult, error) {
-//	return GetTransactions(params, &abtc.RPCParams, abtc.NetID)
-//}
-//
+
 //func (abtc AdaptorBTCHTTP) SendTransaction(params *adaptor.SendTransactionParams) (*adaptor.SendTransactionResult, error) {
 //	return SendTransaction(params, &abtc.RPCParams)
 //}
 //func (abtc AdaptorBTCHTTP) SendTransactionHttp(params *adaptor.SendTransactionHttpParams) (*adaptor.SendTransactionHttpResult, error) {
 //	return SendTransactionHttp(params, abtc.NetID)
-//}
-//
-//func (abtc AdaptorBTCHTTP) MergeTransaction(params *adaptor.MergeTransactionParams) (*adaptor.MergeTransactionResult, error) {
-//	return MergeTransaction(params, abtc.NetID)
-//}
-//
-//func (abtc AdaptorBTCHTTP) SignMessage(params *adaptor.SignMessageParams) (*adaptor.SignMessageResult, error) {
-//	return SignMessage(params)
-//}
-//
-//func (abtc AdaptorBTCHTTP) VerifyMessage(params *adaptor.VerifyMessageParams) (*adaptor.VerifyMessageResult, error) {
-//	return VerifyMessage(params, abtc.NetID)
 //}
