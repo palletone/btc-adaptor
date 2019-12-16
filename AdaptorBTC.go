@@ -154,3 +154,14 @@ func (abtc *AdaptorBTC) GetTransferTx(input *adaptor.GetTransferTxInput) (*adapt
 func (abtc *AdaptorBTC) CreateMultiSigAddress(input *adaptor.CreateMultiSigAddressInput) (*adaptor.CreateMultiSigAddressOutput, error) {
 	return CreateMultiSigAddress(input, abtc.NetID)
 }
+
+func (abtc *AdaptorBTC) CreateMultiSigPayoutTx(input *adaptor.CreateMultiSigPayoutTxInput) (*adaptor.CreateMultiSigPayoutTxOutput, error) {
+	newInput := &adaptor.CreateTransferTokenTxInput{FromAddress: input.FromAddress, ToAddress: input.ToAddress,
+		Amount: input.Amount, Fee: input.Fee, Extra: input.Extra}
+	output, err := CreateTransferTokenTx(newInput, &abtc.RPCParams, abtc.NetID)
+	if err != nil {
+		return nil, err
+	}
+	newOutput := adaptor.CreateMultiSigPayoutTxOutput{Transaction: output.Transaction, Extra: output.Extra}
+	return &newOutput, nil
+}

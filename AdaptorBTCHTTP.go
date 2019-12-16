@@ -140,6 +140,10 @@ func (abtc *AdaptorBTCHTTP) CreateMultiSigAddress(input *adaptor.CreateMultiSigA
 	return CreateMultiSigAddress(input, abtc.NetID)
 }
 
+func (abtc *AdaptorBTCHTTP) CreateMultiSigPayoutTx(input *adaptor.CreateMultiSigPayoutTxInput) (*adaptor.CreateMultiSigPayoutTxOutput, error) {
+	return nil, errors.New("todo")
+}
+
 //func (abtc AdaptorBTCHTTP) GetUTXO(params *adaptor.GetUTXOParams) (*adaptor.GetUTXOResult, error) {
 //	return GetUTXO(params, &abtc.RPCParams, abtc.NetID)
 //}
