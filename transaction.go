@@ -31,6 +31,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
+	"github.com/shopspring/decimal"
 
 	"github.com/palletone/btc-adaptor/txscript"
 
@@ -60,7 +61,7 @@ func selUnspends(outputIndexMap map[string]float64, btcAmout uint64) []outputInd
 	var bigUnspends []outputIndexValue
 	var selUnspends []outputIndexValue
 	for outputIndex, value := range outputIndexMap {
-		amount := uint64(value * 1e8)
+		amount := uint64(decimal.NewFromFloat(value).Mul(decimal.New(1, 8)).IntPart())
 		if amount == btcAmout {
 			selUnspends = append(selUnspends, outputIndexValue{outputIndex, amount})
 			break
@@ -570,10 +571,10 @@ func GetTransferTx(input *adaptor.GetTransferTxInput, rpcParams *RPCParams) (*ad
 
 	//turn to big int
 	bigIntAmount := new(big.Int)
-	bigIntAmount.SetUint64(uint64(amount * 1e8))
+	bigIntAmount.SetUint64(uint64(decimal.NewFromFloat(amount).Mul(decimal.New(1, 8)).IntPart()))
 	output.Tx.Amount = adaptor.NewAmountAsset(bigIntAmount, "BTC")
 	bigIntFee := new(big.Int)
-	bigIntFee.SetUint64(uint64(fee * 1e8))
+	bigIntFee.SetUint64(uint64(decimal.NewFromFloat(fee).Mul(decimal.New(1, 8)).IntPart()))
 	output.Tx.Fee = adaptor.NewAmountAsset(bigIntFee, "BTC")
 
 	output.Tx.TxID, _ = hex.DecodeString(txResult.Txid)

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/palletone/adaptor"
 )
 
@@ -15,15 +17,16 @@ func TestGetBalance(t *testing.T) {
 		RPCPasswd: "123456",
 		CertPath:  GCertPath,
 	}
-
+	fmt.Println(GCertPath)
+	//return
 	//testResult := `{"value":0.999}`
 	testResult := 0.999
-	testResultUint64 := uint64(testResult * 1e8)
+	testResultUint64 := uint64(uint64(decimal.NewFromFloat(testResult).Mul(decimal.New(1, 8)).IntPart()))
 
 	//	input := &adaptor.GetBalanceInput{Address:"mxprH5bkXtn9tTTAxdQGPXrvruCUvsBNKt"}
 	//	input := &adaptor.GetBalanceInput{Address:"miZqthevf8LWguQmUR6EwynULqjKmYWxyY"}
-	//input := &adaptor.GetBalanceInput{Address: "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"}
-	input := &adaptor.GetBalanceInput{Address: "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"}
+	input := &adaptor.GetBalanceInput{Address: "mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5"}
+	//input := &adaptor.GetBalanceInput{Address: "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"}
 
 	result, err := GetBalance(input, &rpcParams, NETID_TEST)
 	if err != nil {
