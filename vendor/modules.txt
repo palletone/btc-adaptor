@@ -21,5 +21,7 @@ github.com/davecgh/go-spew/spew
 github.com/golang/mock/gomock
 # github.com/palletone/adaptor v1.0.1-0.20191204100220-740fe858e09b
 github.com/palletone/adaptor
+# github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
+github.com/shopspring/decimal
 # golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
 golang.org/x/crypto/ripemd160
