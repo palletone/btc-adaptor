@@ -276,17 +276,28 @@ func GetTransactions(input *adaptor.GetAddrTxHistoryInput, rpcParams *RPCParams,
 			msgIndex[idIndex] = out.Value //save in map
 
 			if input.FromAddress == out.ScriptPubKey.Addresses[0] {
-				change = out.Value
+				change += out.Value
 				continue
 			}
-			if input.ToAddress != out.ScriptPubKey.Addresses[0] {
-				amountOther += out.Value
-				continue
+			if "" != input.ToAddress {
+				if input.ToAddress == out.ScriptPubKey.Addresses[0] {
+					isTo = true
+					tx.ToAddress = input.ToAddress
+					amount += out.Value
+					continue
+				}
+				amountOther += out.Value //todo no to address?empty
+			} else {
+				if "" == tx.ToAddress { //first recv address
+					tx.ToAddress = out.ScriptPubKey.Addresses[0]
+					amount = out.Value
+					continue
+				} else if tx.ToAddress == out.ScriptPubKey.Addresses[0] {
+					amount += out.Value
+					continue
+				}
+				amountOther += out.Value //todo amountOther?
 			}
-			isTo = true
-			tx.ToAddress = input.ToAddress
-			amount = out.Value
-			break
 		}
 		if isFilter && !isTo {
 			continue
@@ -317,7 +328,7 @@ func GetTransactions(input *adaptor.GetAddrTxHistoryInput, rpcParams *RPCParams,
 			}
 			inputAmount += txPreResult.Vout[msgTx.Vin[i].Vout].Value
 		}
-		fee := inputAmount - change - amount
+		fee := inputAmount - change - amount - amountOther
 
 		//turn to big int
 		bigIntAmount := new(big.Int)

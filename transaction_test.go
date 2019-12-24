@@ -23,6 +23,7 @@ func TestCreateTransferTokenTx(t *testing.T) {
 	input.ToAddress = "2N4jXJyMo8eRKLPWqi5iykAyFLXd6szehwA"      //mgtT62nq65DsPPAzPp6KhsWoHjNQUR9Bu5
 	input.Amount = adaptor.NewAmountAssetString("980000", "BTC") //dao, 0.0099 btc
 	input.Fee = adaptor.NewAmountAssetString("10000", "BTC")     //dao,0.0001 btc
+	//input.Extra
 
 	input.ToAddress = "PalletOne"
 	input.ToAddress = "P19z4r7G9MpZtaYMZcATWinTwXeGBj7fWTd"
@@ -162,7 +163,7 @@ func TestGetTransferTx(t *testing.T) {
 		CertPath:  GCertPath,
 	}
 
-	txIDHex := "6b2c4379b326757dd5b847f3c584170c5fe2649e6e33f962cf7e9826f77f07b6"
+	txIDHex := "52dab174e0d719704316c9301f146e1e90e7797ec8fe9f357a5fdfb0a62a1ab4"
 	txID, _ := hex.DecodeString(txIDHex)
 
 	var input adaptor.GetTransferTxInput

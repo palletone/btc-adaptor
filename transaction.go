@@ -557,15 +557,14 @@ func GetTransferTx(input *adaptor.GetTransferTxInput, rpcParams *RPCParams) (*ad
 			continue
 		}
 		if fromAddr == out.ScriptPubKey.Addresses[0] {
-			change = out.Value
+			change += out.Value
 			continue
 		}
 		if output.Tx.ToAddress != "" && output.Tx.ToAddress != out.ScriptPubKey.Addresses[0] {
 			return nil, fmt.Errorf("Not support send 2+ tx ")
 		}
 		output.Tx.ToAddress = out.ScriptPubKey.Addresses[0]
-		amount = out.Value
-		break
+		amount += out.Value
 	}
 	fee := inputAmount - change - amount
 
