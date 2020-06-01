@@ -74,11 +74,18 @@ func TestSignTransaction(t *testing.T) {
 }
 
 func TestSendTransaction(t *testing.T) {
+	//rpcParams := RPCParams{
+	//	Host:      "localhost:18334",
+	//	RPCUser:   "test",
+	//	RPCPasswd: "123456",
+	//	CertPath:  GCertPath,
+	//}
+
 	rpcParams := RPCParams{
-		Host:      "localhost:18334",
-		RPCUser:   "test",
-		RPCPasswd: "123456",
-		CertPath:  GCertPath,
+		Host:      "123.126.106.86:28556",
+		RPCUser:   "pallettest",
+		RPCPasswd: "pallet123456",
+		CertPath:  "./rpc-123.126.106.86-testnet.cert",
 	}
 
 	tx, _ := hex.DecodeString("01000000016af6e1f77fbff03a3439d465c4ceb7871f4722dd1463e745129a21bf80670f49000000006a473044022012f857974deeacf8cc255b31c89971ef280be070bcd1390f49f2dec083c600360220410ba0580b53166bf165c124dda35539dcf765c78232e0cd273287f0844985ff0121020106ca23b4f28dbc83838ee4745accf90e5621fe70df5b1ee8f7e1b3b41b64cb00000000020000000000000000256a235031397a34723747394d705a7461594d5a63415457696e5477586547426a376657546420f40e00000000001976a9140f08e55bcfc207632d2dcfc3d4db4b6d8d91b22e88ac00000000")

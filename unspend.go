@@ -70,7 +70,7 @@ func GetClient(rpcParams *RPCParams) (*rpcclient.Client, error) {
 			User:         rpcParams.RPCUser,
 			Pass:         rpcParams.RPCPasswd,
 			HTTPPostMode: true, // Bitcoin core only supports HTTP POST mode
-			DisableTLS:   true, // Bitcoin core does not provide TLS by default
+			//DisableTLS:   true, // Bitcoin core does not provide TLS by default
 			//Certificates: certs, // btcwallet provide TLS by default
 		}
 	}
@@ -81,6 +81,7 @@ func GetClient(rpcParams *RPCParams) (*rpcclient.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	//client
 	return client, nil
 }
 

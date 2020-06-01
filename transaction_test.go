@@ -10,11 +10,18 @@ import (
 )
 
 func TestCreateTransferTokenTx(t *testing.T) {
+	//rpcParams := RPCParams{
+	//	Host:      "localhost:18334",
+	//	RPCUser:   "test",
+	//	RPCPasswd: "123456",
+	//	CertPath:  GCertPath,
+	//}
+
 	rpcParams := RPCParams{
-		Host:      "localhost:18334",
-		RPCUser:   "test",
-		RPCPasswd: "123456",
-		CertPath:  GCertPath,
+		Host:      "123.126.106.86:28556",
+		RPCUser:   "pallettest",
+		RPCPasswd: "pallet123456",
+		CertPath:  "./rpc-123.126.106.86-testnet.cert",
 	}
 
 	//
@@ -65,11 +72,18 @@ func TestCalcTxHash(t *testing.T) {
 }
 
 func TestGetBlockInfo(t *testing.T) {
+	//rpcParams := RPCParams{
+	//	Host:      "localhost:18334",
+	//	RPCUser:   "test",
+	//	RPCPasswd: "123456",
+	//	CertPath:  GCertPath,
+	//}
+
 	rpcParams := RPCParams{
-		Host:      "localhost:18334",
-		RPCUser:   "test",
-		RPCPasswd: "123456",
-		CertPath:  GCertPath,
+		Host:      "123.126.106.86:28556",
+		RPCUser:   "pallettest",
+		RPCPasswd: "pallet123456",
+		CertPath:  "./rpc-123.126.106.86-testnet.cert",
 	}
 
 	var input adaptor.GetBlockInfoInput
@@ -93,11 +107,18 @@ func TestGetBlockInfo(t *testing.T) {
 }
 
 func TestGetPalletOneMappingAddress(t *testing.T) {
+	//rpcParams := RPCParams{
+	//	Host:      "localhost:18334",
+	//	RPCUser:   "test",
+	//	RPCPasswd: "123456",
+	//	CertPath:  GCertPath,
+	//}
+
 	rpcParams := RPCParams{
-		Host:      "localhost:18334",
-		RPCUser:   "test",
-		RPCPasswd: "123456",
-		CertPath:  GCertPath,
+		Host:      "123.126.106.86:28556",
+		RPCUser:   "pallettest",
+		RPCPasswd: "pallet123456",
+		CertPath:  "./rpc-123.126.106.86-testnet.cert",
 	}
 
 	//txIDStr := "8b886fb5033d26c2bad728d73188e4eac46e2eb61260a2638b3330484498c576"
@@ -132,11 +153,18 @@ func TestGetPalletOneMappingAddress(t *testing.T) {
 }
 
 func TestGetTxBasicInfo(t *testing.T) {
+	//rpcParams := RPCParams{
+	//	Host:      "localhost:18334",
+	//	RPCUser:   "test",
+	//	RPCPasswd: "123456",
+	//	CertPath:  GCertPath,
+	//}
+
 	rpcParams := RPCParams{
-		Host:      "localhost:18334",
-		RPCUser:   "test",
-		RPCPasswd: "123456",
-		CertPath:  GCertPath,
+		Host:      "123.126.106.86:28556",
+		RPCUser:   "pallettest",
+		RPCPasswd: "pallet123456",
+		CertPath:  "./rpc-123.126.106.86-testnet.cert",
 	}
 
 	txIDHex := "8b886fb5033d26c2bad728d73188e4eac46e2eb61260a2638b3330484498c576"
@@ -156,11 +184,18 @@ func TestGetTxBasicInfo(t *testing.T) {
 }
 
 func TestGetTransferTx(t *testing.T) {
+	//rpcParams := RPCParams{
+	//	Host:      "localhost:18334",
+	//	RPCUser:   "test",
+	//	RPCPasswd: "123456",
+	//	CertPath:  GCertPath,
+	//}
+
 	rpcParams := RPCParams{
-		Host:      "localhost:18334",
-		RPCUser:   "test",
-		RPCPasswd: "123456",
-		CertPath:  GCertPath,
+		Host:      "123.126.106.86:28556",
+		RPCUser:   "pallettest",
+		RPCPasswd: "pallet123456",
+		CertPath:  "./rpc-123.126.106.86-testnet.cert",
 	}
 
 	txIDHex := "52dab174e0d719704316c9301f146e1e90e7797ec8fe9f357a5fdfb0a62a1ab4"

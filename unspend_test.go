@@ -11,13 +11,20 @@ import (
 )
 
 func TestGetBalance(t *testing.T) {
+	//rpcParams := RPCParams{
+	//	Host:      "localhost:18334",
+	//	RPCUser:   "test",
+	//	RPCPasswd: "123456",
+	//	CertPath:  GCertPath,
+	//}
+
 	rpcParams := RPCParams{
-		Host:      "localhost:18334",
-		RPCUser:   "test",
-		RPCPasswd: "123456",
-		CertPath:  GCertPath,
+		Host:      "123.126.106.86:28556",
+		RPCUser:   "pallettest",
+		RPCPasswd: "pallet123456",
+		CertPath:  "./rpc-123.126.106.86-testnet.cert",
 	}
-	fmt.Println(GCertPath)
+
 	//return
 	//testResult := `{"value":0.999}`
 	testResult := 0.999
@@ -60,11 +67,18 @@ func TestGetBalance(t *testing.T) {
 //}
 
 func TestGetTransactions(t *testing.T) {
+	//rpcParams := RPCParams{
+	//	Host:      "localhost:18334",
+	//	RPCUser:   "test",
+	//	RPCPasswd: "123456",
+	//	CertPath:  GCertPath,
+	//}
+
 	rpcParams := RPCParams{
-		Host:      "localhost:18334",
-		RPCUser:   "test",
-		RPCPasswd: "123456",
-		CertPath:  GCertPath,
+		Host:      "123.126.106.86:28556",
+		RPCUser:   "pallettest",
+		RPCPasswd: "pallet123456",
+		CertPath:  "./rpc-123.126.106.86-testnet.cert",
 	}
 
 	var input adaptor.GetAddrTxHistoryInput
