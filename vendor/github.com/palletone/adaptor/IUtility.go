@@ -115,7 +115,7 @@ type VerifySignatureOutput struct {
 type SignTransactionInput struct {
 	PrivateKey  []byte `json:"private_key"`
 	Transaction []byte `json:"transaction"`
-	//BTC： 如果是单地址的交易签名，请输入地址；如果是多签地址的交易签名，请输入RedeemHex;
+	//BTC： 如果Input只有1个，那么可以为空，如果是多个，那么必须使用Extra指定InputIndex
 	Extra []byte `json:"extra"`
 }
 type SignTransactionOutput struct {
